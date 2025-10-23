@@ -5,6 +5,10 @@ use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\CompteController;
 use App\Http\Controllers\API\TransactionController;
 
+Route::get('/test', function() {
+    return ['message' => 'API is working'];
+});
+
 // Routes pour les utilisateurs
 Route::get('/users', [UserController::class, 'index']);
 Route::get('/users/{id}', [UserController::class, 'show']);

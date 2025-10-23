@@ -12,10 +12,14 @@ services:
     envVars:
       - key: APP_ENV
         value: production
+      - key: APP_DEBUG
+        value: "true"
       - key: APP_KEY
         sync: false
       - key: L5_SWAGGER_USE_HTTPS
         value: "true"
+      - key: LOG_LEVEL
+        value: debug
       - key: DB_CONNECTION
         value: pgsql
       - key: DB_HOST
