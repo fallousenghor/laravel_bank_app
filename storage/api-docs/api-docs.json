@@ -1,0 +1,141 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "API de Gestion des Comptes Bancaires",
+        "description": "API pour la gestion des comptes bancaires",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/api/comptes": {
+            "get": {
+                "tags": [
+                    "Comptes"
+                ],
+                "summary": "Liste tous les comptes bancaires",
+                "description": "Retourne la liste de tous les comptes bancaires avec leurs utilisateurs et transactions associés",
+                "operationId": "d779ab09878f45a91fb37157ebf4ba12",
+                "responses": {
+                    "200": {
+                        "description": "Liste des comptes récupérée avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "example": 1
+                                            },
+                                            "numero": {
+                                                "type": "string",
+                                                "example": "CPT123456789"
+                                            },
+                                            "type": {
+                                                "type": "string",
+                                                "example": "Épargne"
+                                            },
+                                            "solde": {
+                                                "type": "number",
+                                                "format": "float",
+                                                "example": 1000.5
+                                            },
+                                            "statut": {
+                                                "type": "string",
+                                                "example": "Actif"
+                                            },
+                                            "date_creation": {
+                                                "type": "string",
+                                                "format": "date",
+                                                "example": "2023-10-23"
+                                            },
+                                            "utilisateur_id": {
+                                                "type": "integer",
+                                                "example": 1
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/comptes/{id}": {
+            "get": {
+                "tags": [
+                    "Comptes"
+                ],
+                "summary": "Obtenir les détails d'un compte spécifique",
+                "description": "Retourne les détails d'un compte bancaire spécifique avec son utilisateur et ses transactions",
+                "operationId": "5816c36e0c41bb25ae8eea34fca8510f",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID du compte",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Détails du compte récupérés avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "id": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "numero": {
+                                            "type": "string",
+                                            "example": "CPT123456789"
+                                        },
+                                        "type": {
+                                            "type": "string",
+                                            "example": "Épargne"
+                                        },
+                                        "solde": {
+                                            "type": "number",
+                                            "format": "float",
+                                            "example": 1000.5
+                                        },
+                                        "statut": {
+                                            "type": "string",
+                                            "example": "Actif"
+                                        },
+                                        "date_creation": {
+                                            "type": "string",
+                                            "format": "date",
+                                            "example": "2023-10-23"
+                                        },
+                                        "utilisateur_id": {
+                                            "type": "integer",
+                                            "example": 1
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Compte non trouvé"
+                    }
+                }
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Comptes",
+            "description": "Comptes"
+        }
+    ]
+}
