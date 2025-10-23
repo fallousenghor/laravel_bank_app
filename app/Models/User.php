@@ -47,8 +47,14 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
+    /**
+     * Get only account numbers for this user.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function comptes()
     {
-        return $this->hasMany(Compte::class, 'utilisateur_id');
+        return $this->hasMany(Compte::class, 'utilisateur_id')
+                    ->select(['id', 'numero', 'utilisateur_id']); // On garde l'id et utilisateur_id pour la relation
     }
 }

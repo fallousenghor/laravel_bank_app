@@ -10,8 +10,7 @@ Route::get('/users', [UserController::class, 'index']);
 Route::get('/users/{id}', [UserController::class, 'show']);
 
 // Routes pour les comptes
-Route::get('/comptes', [CompteController::class, 'index']);
-Route::get('/comptes/{id}', [CompteController::class, 'show']);
+Route::apiResource('comptes', CompteController::class);
 
 // Routes pour les transactions
 Route::get('/transactions', [TransactionController::class, 'index']);

@@ -20,6 +20,14 @@ class Compte extends Model
     ];
 
     /**
+     * Get the transactions for the compte.
+     */
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    /**
      * Indique que l'ID n'est pas auto-incrémenté
      *
      * @var bool
