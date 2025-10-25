@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: laravel-backend
+    name: fallou-senghor-bank
     env: php
     plan: free
     buildCommand: |
@@ -19,7 +19,7 @@ services:
       - key: L5_SWAGGER_USE_HTTPS
         value: "true"
       - key: APP_URL
-        value: "https://laravel-bank-app.onrender.com"
+        value: "https://fallou-senghor-bank.onrender.com"
       - key: LOG_LEVEL
         value: debug
       - key: DB_CONNECTION

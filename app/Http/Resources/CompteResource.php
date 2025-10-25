@@ -22,7 +22,10 @@ class CompteResource extends JsonResource
             'statut' => $this->statut,
             'date_creation' => $this->date_creation,
             'client' => [
-                'nom' => $this->utilisateur->name
+                'id' => $this->utilisateur?->id,
+                'prenom' => $this->utilisateur?->prenom,
+                'nom' => $this->utilisateur?->nom,
+                'email' => $this->utilisateur?->email,
             ],
         ];
     }

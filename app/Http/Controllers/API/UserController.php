@@ -3,39 +3,33 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Http\Resources\UserResource;
 use App\Http\Requests\ListUsersRequest;
-use App\Http\Requests\ShowUserRequest;
+use Illuminate\Http\Request;
+use App\Interfaces\UserRepositoryInterface;
+use App\Traits\ApiResponse;
 
 class UserController extends Controller
 {
-    public function index(ListUsersRequest $request)
+    use ApiResponse;
+    private $userRepository;
+
+    public function __construct(UserRepositoryInterface $userRepository)
     {
-        $query = User::with('comptes');
-
-        if ($request->has('role')) {
-            $query->where('role', $request->role);
-        }
-
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('nom', 'ilike', "%{$search}%")
-                  ->orWhere('prenom', 'ilike', "%{$search}%")
-                  ->orWhere('email', 'ilike', "%{$search}%")
-                  ->orWhere('telephone', 'ilike', "%{$search}%");
-            });
-        }
-
-        $users = $query->get();
-        return UserResource::collection($users);
+        $this->userRepository = $userRepository;
     }
 
-    public function show(\App\Http\Requests\ShowUserRequest $request)
+    public function index(ListUsersRequest $request)
     {
-        $id = $request->validated()['id'];
-        $user = User::with('comptes')->findOrFail($id);
-        return new UserResource($user);
+        $users = $this->userRepository->getAllUsers();
+        return $this->successResponse(UserResource::collection($users), 'Users retrieved');
+    }
+
+    public function show(Request $request, $id = null)
+    {
+        // Récupère l'id depuis le paramètre de route ou la query string (flexible pour les tests)
+        $id = $id ?? $request->route('id') ?? $request->query('id');
+        $user = $this->userRepository->getUserById($id);
+        return $this->successResponse(new UserResource($user), 'User details');
     }
 }

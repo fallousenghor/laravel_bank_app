@@ -3,49 +3,33 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
-use App\Models\Transaction;
 use App\Http\Resources\TransactionResource;
 use App\Http\Requests\ListTransactionsRequest;
-use App\Http\Requests\ShowTransactionRequest;
+use Illuminate\Http\Request;
+use App\Interfaces\TransactionRepositoryInterface;
+use App\Traits\ApiResponse;
 
 class TransactionController extends Controller
 {
-    public function index(ListTransactionsRequest $request)
+    use ApiResponse;
+    private $transactionRepository;
+
+    public function __construct(TransactionRepositoryInterface $transactionRepository)
     {
-        $query = Transaction::with('compte');
-
-        if ($request->has('compte_id')) {
-            $query->where('compte_id', $request->compte_id);
-        }
-
-        if ($request->has('type')) {
-            $query->where('type', $request->type);
-        }
-
-        if ($request->has('date_debut')) {
-            $query->where('date', '>=', $request->date_debut);
-        }
-
-        if ($request->has('date_fin')) {
-            $query->where('date', '<=', $request->date_fin);
-        }
-
-        if ($request->has('montant_min')) {
-            $query->where('montant', '>=', $request->montant_min);
-        }
-
-        if ($request->has('montant_max')) {
-            $query->where('montant', '<=', $request->montant_max);
-        }
-
-        $transactions = $query->get();
-        return TransactionResource::collection($transactions);
+        $this->transactionRepository = $transactionRepository;
     }
 
-    public function show(ShowTransactionRequest $request)
+    public function index(ListTransactionsRequest $request)
     {
-        $id = $request->validated()['id'];
-        $transaction = Transaction::with('compte')->findOrFail($id);
-        return new TransactionResource($transaction);
+        $transactions = $this->transactionRepository->getAllTransactions();
+        // Note: Vous pourriez ajouter des méthodes spécifiques dans le repository pour gérer ces filtres
+        return $this->successResponse(TransactionResource::collection($transactions), 'Transactions récupérées');
+    }
+
+    public function show(Request $request, $id = null)
+    {
+        $id = $id ?? $request->route('id') ?? $request->query('id');
+        $transaction = $this->transactionRepository->getTransactionById($id);
+        return $this->successResponse(new TransactionResource($transaction), 'Détails de la transaction');
     }
 }

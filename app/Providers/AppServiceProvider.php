@@ -5,6 +5,12 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Config;
+use App\Interfaces\UserRepositoryInterface;
+use App\Repositories\UserRepository;
+use App\Interfaces\CompteRepositoryInterface;
+use App\Repositories\CompteRepository;
+use App\Interfaces\TransactionRepositoryInterface;
+use App\Repositories\TransactionRepository;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -13,7 +19,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(UserRepositoryInterface::class, UserRepository::class);
+        $this->app->bind(CompteRepositoryInterface::class, CompteRepository::class);
+        $this->app->bind(TransactionRepositoryInterface::class, TransactionRepository::class);
     }
 
     /**

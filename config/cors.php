@@ -15,11 +15,17 @@ return [
     |
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    'paths' => ['api/*', 'fallou/*', 'sanctum/csrf-cookie', 'docs', '*'],
 
     'allowed_methods' => ['*'],
 
     'allowed_origins' => ['*'],
+    'allowed_origins_patterns' => [],
+    'allowed_methods' => ['*'],
+    'allowed_headers' => ['*'],
+    'exposed_headers' => ['*'],
+    'max_age' => 0,
+    'supports_credentials' => true,
 
     'allowed_origins_patterns' => [],
 

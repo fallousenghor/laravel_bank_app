@@ -5,15 +5,39 @@
         "description": "API pour la gestion des comptes bancaires",
         "version": "1.0.0"
     },
+    "servers": [
+        {
+            "url": "http://127.0.0.1:8001",
+            "description": "Serveur Local"
+        },
+        {
+            "url": "https://fallou-senghor-bank.onrender.com",
+            "description": "Serveur de Production"
+        }
+    ],
     "paths": {
-        "/api/comptes": {
+        "/fallou/v1/comptes": {
             "get": {
                 "tags": [
                     "Comptes"
                 ],
                 "summary": "Liste tous les comptes bancaires",
                 "description": "Retourne la liste de tous les comptes bancaires avec leurs utilisateurs",
-                "operationId": "d779ab09878f45a91fb37157ebf4ba12",
+                "operationId": "2452780839a3110f526226e57df4cfbd",
+                "parameters": [
+                    {
+                        "name": "as_admin",
+                        "in": "query",
+                        "description": "Paramètre pour simuler un accès administrateur (utiliser 1 pour les tests)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "enum": [
+                                1
+                            ]
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Liste des comptes récupérée avec succès",
@@ -68,18 +92,38 @@
                                 }
                             }
                         }
+                    },
+                    "403": {
+                        "description": "Accès non autorisé",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Accès non autorisé. Pour les tests, ajoutez ?as_admin=1"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 }
             }
         },
-        "/api/comptes/{id}": {
+        "/fallou/v1/comptes/{id}": {
             "get": {
                 "tags": [
                     "Comptes"
                 ],
                 "summary": "Obtenir les détails d'un compte spécifique",
                 "description": "Retourne les détails d'un compte bancaire spécifique avec son utilisateur",
-                "operationId": "5816c36e0c41bb25ae8eea34fca8510f",
+                "operationId": "43258b8f24cf6c37cd8ee262cf9a7d9f",
                 "parameters": [
                     {
                         "name": "id",
@@ -146,6 +190,96 @@
                     },
                     "404": {
                         "description": "Compte non trouvé"
+                    }
+                }
+            }
+        },
+        "/fallou/v1/comptes/mine": {
+            "get": {
+                "tags": [
+                    "Comptes"
+                ],
+                "summary": "Obtenir les comptes du client connecté",
+                "description": "Retourne la liste des comptes actifs du client authentifié",
+                "operationId": "a24d42c8cf1d66d22f76b6543332fc54",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "description": "ID de l'utilisateur pour les tests (remplace l'authentification)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Liste des comptes de l'utilisateur récupérée avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "properties": {
+                                            "id": {
+                                                "type": "string",
+                                                "format": "uuid"
+                                            },
+                                            "numero": {
+                                                "type": "string"
+                                            },
+                                            "type": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "Épargne",
+                                                    "Chèque"
+                                                ]
+                                            },
+                                            "solde": {
+                                                "type": "number",
+                                                "format": "float"
+                                            },
+                                            "statut": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "Actif",
+                                                    "Bloqué"
+                                                ]
+                                            },
+                                            "date_creation": {
+                                                "type": "string",
+                                                "format": "date"
+                                            },
+                                            "utilisateur_id": {
+                                                "type": "integer"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Non authentifié",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Non authentifié. Pour les tests, fournissez ?user_id=<id>"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 }
             }
