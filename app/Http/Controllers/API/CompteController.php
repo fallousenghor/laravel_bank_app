@@ -75,18 +75,28 @@ class CompteController extends Controller
      */
     public function index(Request $request)
     {
-        // Pour permettre les tests sans authentification, on accepte le paramètre
-        // de query `as_admin=1` qui simule un appel par un admin.
-        $user = $request->user();
-        $isAdmin = ($user && $user->role === 'admin') || $request->query('as_admin') == '1';
+        try {
+            // Pour permettre les tests sans authentification, on accepte le paramètre
+            // de query `as_admin=1` qui simule un appel par un admin.
+            $user = $request->user();
+            $isAdmin = ($user && $user->role === 'admin') || $request->query('as_admin') == '1';
 
-        if (!$isAdmin) {
-            return $this->errorResponse("Accès non autorisé. Pour les tests, ajoutez ?as_admin=1", 403);
+            if (!$isAdmin) {
+                return $this->errorResponse("Accès non autorisé. Pour les tests, ajoutez ?as_admin=1", 403);
+            }
+
+            // Retourne uniquement les comptes actifs de type Épargne ou Chèque
+            $comptes = $this->compteRepository->getActiveComptes();
+            return $this->successResponse(CompteResource::collection($comptes), 'Comptes récupérés');
+        } catch (\Exception $e) {
+            // Log l'erreur pour le debugging
+            \Log::error('Erreur lors de la récupération des comptes: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return $this->errorResponse("Erreur interne du serveur", 500);
         }
-
-        // Retourne uniquement les comptes actifs de type Épargne ou Chèque
-        $comptes = $this->compteRepository->getActiveComptes();
-        return $this->successResponse(CompteResource::collection($comptes), 'Comptes récupérés');
     }
 
     /**

@@ -17,7 +17,11 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            // keep legacy `name` for compatibility but allow nulls
+            $table->string('name')->nullable();
+            // separate first and last name used across the app
+            $table->string('prenom')->nullable();
+            $table->string('nom')->nullable();
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');

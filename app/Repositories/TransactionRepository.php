@@ -39,8 +39,9 @@ class TransactionRepository implements TransactionRepositoryInterface
 
     public function getTransactionsByUserId($userId)
     {
+        // accounts use `utilisateur_id` as the foreign key
         return Transaction::whereHas('compte', function($query) use ($userId) {
-            $query->where('user_id', $userId);
+            $query->where('utilisateur_id', $userId);
         })->get();
     }
 }
