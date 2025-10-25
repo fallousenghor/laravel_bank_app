@@ -12,9 +12,9 @@ cd /var/www/html || exit 1
 if [ -f artisan ]; then
   echo "[entrypoint] Running migrations and seeders (if needed)..."
   # Print DB env and available PDO drivers for debugging
-  echo "[entrypoint] DB_CONNECTION=")
-  echo "[entrypoint] DB_HOST=${DB_HOST:-}">
-  php -r 'print_r(PDO::getAvailableDrivers());' || true
+  echo "[entrypoint] DB_CONNECTION=${DB_CONNECTION:-}"
+  echo "[entrypoint] DB_HOST=${DB_HOST:-}"
+  php -r 'echo implode(",",PDO::getAvailableDrivers());' || true
 
   # If DB_CONNECTION is not pgsql but a Postgres host/port is provided, prefer pgsql
   if [ "${DB_CONNECTION:-}" != "pgsql" ]; then
