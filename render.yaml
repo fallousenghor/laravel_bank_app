@@ -6,10 +6,16 @@ services:
     buildCommand: |
       composer install --no-dev --optimize-autoloader
       php artisan storage:link
+      # Ensure storage directories exist and are writable (prevents Monolog permission errors)
+      mkdir -p storage/logs storage/framework/cache/data
+      chmod -R ug+rwX storage bootstrap/cache || true
+      touch storage/logs/laravel.log || true
+      chmod ug+rw storage/logs/laravel.log || true
+
       php artisan config:cache
       php artisan route:cache
       php artisan view:cache
-      php artisan key:generate
+      php artisan key:generate --ansi
       php artisan l5-swagger:generate
     startCommand: php artisan serve --host=0.0.0.0 --port=$PORT
     envVars:
@@ -22,7 +28,7 @@ services:
       - key: APP_KEY
         sync: false
       - key: APP_URL
-        value: "https://fallou-senghor-bank.onrender.com"
+        value: "https://laravel-bank-app.onrender.com"
       - key: L5_SWAGGER_USE_HTTPS
         value: "true"
       - key: LOG_CHANNEL
