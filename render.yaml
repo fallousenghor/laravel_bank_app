@@ -5,23 +5,30 @@ services:
     plan: free
     buildCommand: |
       composer install --no-dev --optimize-autoloader
+      php artisan storage:link
+      php artisan config:cache
+      php artisan route:cache
+      php artisan view:cache
       php artisan key:generate
       php artisan l5-swagger:generate
-      php artisan migrate:fresh --seed --force
-    startCommand: php artisan serve --host 0.0.0.0 --port 10000
+    startCommand: php artisan serve --host 0.0.0.0 --port $PORT
     envVars:
+      - key: APP_NAME
+        value: "Bank App"
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
-        value: "true"
+        value: "false"
       - key: APP_KEY
         sync: false
-      - key: L5_SWAGGER_USE_HTTPS
-        value: "true"
       - key: APP_URL
         value: "https://fallou-senghor-bank.onrender.com"
+      - key: L5_SWAGGER_USE_HTTPS
+        value: "true"
+      - key: LOG_CHANNEL
+        value: stack
       - key: LOG_LEVEL
-        value: debug
+        value: error
       - key: DB_CONNECTION
         value: pgsql
       - key: DB_HOST
@@ -36,14 +43,17 @@ services:
         value: npg_JTkO6wecp8Sr
       - key: DB_SSLMODE
         value: require
-      - key: DB_HOST
-        sync: false
-      - key: DB_PORT
-        value: 3306
-      - key: DB_DATABASE
-        sync: false
-      - key: DB_USERNAME
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
+      - key: CACHE_DRIVER
+        value: file
+      - key: SESSION_DRIVER
+        value: file
+      - key: SESSION_LIFETIME
+        value: "120"
+      - key: FILESYSTEM_DISK
+        value: local
+    healthCheckPath: /api/health
     autoDeploy: true
+    disk:
+      name: data
+      mountPath: /var/www/html/storage
+      sizeGB: 1

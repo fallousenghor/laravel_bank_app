@@ -314,7 +314,21 @@ return [
          */
         'constants' => [
             // Use APP_URL as the swagger server url (falls back to production url)
-            'L5_SWAGGER_CONST_HOST' => env('APP_URL', 'https://fallou-senghor-bank.onrender.com'),
+            'L5_SWAGGER_CONST_HOST' => env('APP_URL', 'http://127.0.0.1:8001'),
+            'L5_SWAGGER_CONST_DEVELOPMENT_HOST' => 'http://127.0.0.1:8002',
+        ],
+        /*
+         * Servers configuration for Swagger UI
+         */
+        'servers' => [
+            [
+                'url' => env('APP_URL', 'https://fallou.senghor'),
+                'description' => 'Serveur de production',
+            ],
+            [
+                'url' => 'http://127.0.0.1:8002',
+                'description' => 'Serveur de développement local',
+            ],
         ],
     ],
 ];

@@ -9,6 +9,10 @@ Route::get('/test', function() {
     return ['message' => 'API is working'];
 });
 
+Route::get('/health', function() {
+    return response()->json(['status' => 'healthy'], 200);
+});
+
 // Versioning des routes API -> final: /api/v1/...
 Route::prefix('v1')->group(function () {
     // Routes pour les utilisateurs

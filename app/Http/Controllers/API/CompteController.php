@@ -15,9 +15,13 @@ use App\Traits\ApiResponse;
  *     version="1.0.0",
  *     description="API pour la gestion des comptes bancaires"
  * )
- * @OA\Server(
+ * @OAServer(
  *     url=L5_SWAGGER_CONST_HOST,
  *     description="Serveur (défini par L5_SWAGGER_CONST_HOST)"
+ * )
+ * @OAServer(
+ *     url=L5_SWAGGER_CONST_DEVELOPMENT_HOST,
+ *     description="Serveur de développement"
  * )
  */
 class CompteController extends Controller
