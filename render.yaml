@@ -11,9 +11,7 @@ services:
       php artisan view:cache
       php artisan key:generate
       php artisan l5-swagger:generate
-    startCommand: |
-      php-fpm -F -R &
-      nginx -g "daemon off;" -c /etc/nginx/nginx.conf
+    startCommand: php artisan serve --host=0.0.0.0 --port=$PORT
     envVars:
       - key: APP_NAME
         value: "Bank App"

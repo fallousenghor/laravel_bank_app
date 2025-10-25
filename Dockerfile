@@ -13,8 +13,7 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     zip \
     unzip \
-    libpq-dev \
-    nginx
+    libpq-dev
 
 # Nettoyer le cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -30,9 +29,8 @@ RUN useradd -G www-data,root -u $uid -d /home/$user $user
 RUN mkdir -p /home/$user/.composer && \
     chown -R $user:$user /home/$user
 
-# Copier les fichiers de configuration
-COPY docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf
-COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
+# Configuration PHP
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
 # Définir le répertoire de travail
 WORKDIR /var/www/html
