@@ -8,11 +8,7 @@
     "servers": [
         {
             "url": "http://127.0.0.1:8001",
-            "description": "Serveur Local"
-        },
-        {
-            "url": "https://fallou-senghor-bank.onrender.com",
-            "description": "Serveur de Production"
+            "description": "Serveur (défini par L5_SWAGGER_CONST_HOST)"
         }
     ],
     "paths": {
