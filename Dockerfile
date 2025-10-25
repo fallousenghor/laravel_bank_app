@@ -61,7 +61,15 @@ RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 # Changer vers l'utilisateur www-data pour php-fpm
+# Copier le script d'entrypoint qui exécutera migrations / seeders au démarrage
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh && chown www-data:www-data /usr/local/bin/docker-entrypoint.sh
+
+# Changer vers l'utilisateur www-data pour php-fpm
 USER www-data
+
+# Exécuter le script d'entrypoint (s'exécutera avec l'utilisateur www-data)
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # Start the Laravel built-in server so Render can detect the HTTP port
 EXPOSE 8000

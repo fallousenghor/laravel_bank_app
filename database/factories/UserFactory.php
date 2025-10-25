@@ -23,9 +23,14 @@ class UserFactory extends Factory
      */
     public function definition(): array
     {
+        $prenom = fake()->firstName();
+        $nom = fake()->lastName();
+
         return [
-            'prenom' => fake()->firstName(),
-            'nom' => fake()->lastName(),
+            'prenom' => $prenom,
+            'nom' => $nom,
+            // legacy `name` kept for compatibility with older code
+            'name' => $prenom . ' ' . $nom,
             'email' => fake()->unique()->safeEmail(),
             'telephone' => fake()->phoneNumber(),
             'adresse' => fake()->address(),
