@@ -11,17 +11,25 @@ cd /var/www/html || exit 1
 # Run migrations and seeders if artisan exists
 if [ -f artisan ]; then
   echo "[entrypoint] Running migrations and seeders (if needed)..."
-  # Try to run migrations; if they fail due to DB not being ready, show a message but continue to the server
-  if php artisan migrate --force; then
-    echo "[entrypoint] Migrations ran successfully."
-  else
-    echo "[entrypoint] Migrations failed or DB not ready. Continuing; check logs."
-  fi
+  # Retry migrations a few times in case DB is not yet ready (common in cloud deploys)
+  MAX_RETRIES=${MAX_RETRIES:-10}
+  SLEEP_SECONDS=${SLEEP_SECONDS:-5}
+  attempt=1
+  until php artisan migrate --force; do
+    echo "[entrypoint] Migration attempt ${attempt} failed. Waiting ${SLEEP_SECONDS}s before retry..."
+    attempt=$((attempt+1))
+    if [ ${attempt} -gt ${MAX_RETRIES} ]; then
+      echo "[entrypoint] Migrations failed after ${MAX_RETRIES} attempts. Continuing; check logs."
+      break
+    fi
+    sleep ${SLEEP_SECONDS}
+  done
 
+  # Run seeders (DatabaseSeeder is idempotent now and will skip if users exist)
   if php artisan db:seed --force; then
     echo "[entrypoint] Seeders ran successfully."
   else
-    echo "[entrypoint] Seeders failed or DB not ready. Continuing; check logs."
+    echo "[entrypoint] Seeders failed. Continuing; check logs."
   fi
 
   # Cache config/routes/views for performance (ignore failures)

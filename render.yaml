@@ -1,23 +1,8 @@
 services:
   - type: web
     name: fallou-senghor-bank
-    env: php
+    env: docker
     plan: free
-    buildCommand: |
-      composer install --no-dev --optimize-autoloader
-      php artisan storage:link
-      # Ensure storage directories exist and are writable (prevents Monolog permission errors)
-      mkdir -p storage/logs storage/framework/cache/data
-      chmod -R ug+rwX storage bootstrap/cache || true
-      touch storage/logs/laravel.log || true
-      chmod ug+rw storage/logs/laravel.log || true
-
-      php artisan config:cache
-      php artisan route:cache
-      php artisan view:cache
-      php artisan key:generate --ansi
-      php artisan l5-swagger:generate
-    startCommand: php artisan serve --host=0.0.0.0 --port=$PORT
     envVars:
       - key: APP_NAME
         value: "Bank App"
@@ -58,7 +43,7 @@ services:
       - key: FILESYSTEM_DISK
         value: local
     healthCheckPath: /api/health
-    autoDeploy: true
+  autoDeploy: true
     disk:
       name: data
       mountPath: /var/www/html/storage

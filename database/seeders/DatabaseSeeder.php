@@ -12,7 +12,14 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create admin user
+        // Only seed if users table is empty to avoid duplicate key errors on repeated deploys
+        $userCount = \App\Models\User::count();
+        if ($userCount > 0) {
+            $this->command->info("Database already seeded (users count: {$userCount}). Skipping seeding.");
+            return;
+        }
+
+        // Create admin user (idempotent guard above prevents duplicates)
         \App\Models\User::factory()->create([
             'prenom' => 'Admin',
             'nom' => 'System',
