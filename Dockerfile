@@ -62,3 +62,7 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 
 # Changer vers l'utilisateur www-data pour php-fpm
 USER www-data
+
+# Start the Laravel built-in server so Render can detect the HTTP port
+EXPOSE 8000
+CMD ["sh", "-lc", "php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"]
