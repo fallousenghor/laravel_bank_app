@@ -11,6 +11,22 @@ cd /var/www/html || exit 1
 # Run migrations and seeders if artisan exists
 if [ -f artisan ]; then
   echo "[entrypoint] Running migrations and seeders (if needed)..."
+  # Print DB env and available PDO drivers for debugging
+  echo "[entrypoint] DB_CONNECTION=")
+  echo "[entrypoint] DB_HOST=${DB_HOST:-}">
+  php -r 'print_r(PDO::getAvailableDrivers());' || true
+
+  # If DB_CONNECTION is not pgsql but a Postgres host/port is provided, prefer pgsql
+  if [ "${DB_CONNECTION:-}" != "pgsql" ]; then
+    if [ "${DB_PORT:-}" = "5432" ] || echo "${DB_HOST:-}" | grep -qi "neon"; then
+      if php -r 'exit(in_array("pgsql", PDO::getAvailableDrivers()) ? 0 : 1);' ; then
+        echo "[entrypoint] Forcing DB_CONNECTION=pgsql (Postgres detected and driver available)"
+        export DB_CONNECTION=pgsql
+      else
+        echo "[entrypoint] Postgres driver (pdo_pgsql) not available in PHP. Migrations may fail."
+      fi
+    fi
+  fi
   # Retry migrations a few times in case DB is not yet ready (common in cloud deploys)
   MAX_RETRIES=${MAX_RETRIES:-10}
   SLEEP_SECONDS=${SLEEP_SECONDS:-5}
