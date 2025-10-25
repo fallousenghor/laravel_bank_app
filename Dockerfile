@@ -62,12 +62,3 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 
 # Changer vers l'utilisateur www-data pour php-fpm
 USER www-data
-
-# Exposer le port 9000 et démarrer php-fpm
-EXPOSE 9000
-CMD ["php-fpm"]
-USER $user
-
-# Exposer le port 9000 et démarrer php-fpm
-EXPOSE 9000
-CMD ["php-fpm"]
