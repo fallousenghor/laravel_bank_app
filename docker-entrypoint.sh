@@ -41,11 +41,16 @@ if [ -f artisan ]; then
     sleep ${SLEEP_SECONDS}
   done
 
-  # Run seeders (DatabaseSeeder is idempotent now and will skip if users exist)
-  if php artisan db:seed --force; then
-    echo "[entrypoint] Seeders ran successfully."
+  # Run seeders only if explicitly enabled (safer for production)
+  if [ "${RUN_SEEDERS:-false}" = "true" ]; then
+    echo "[entrypoint] RUN_SEEDERS=true; running seeders..."
+    if php artisan db:seed --force; then
+      echo "[entrypoint] Seeders ran successfully."
+    else
+      echo "[entrypoint] Seeders failed. Continuing; check logs."
+    fi
   else
-    echo "[entrypoint] Seeders failed. Continuing; check logs."
+    echo "[entrypoint] RUN_SEEDERS not enabled; skipping seeders."
   fi
 
   # Cache config/routes/views for performance (ignore failures)
