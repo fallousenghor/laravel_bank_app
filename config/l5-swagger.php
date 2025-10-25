@@ -313,7 +313,8 @@ return [
          * Constants which can be used in annotations
          */
         'constants' => [
-            'L5_SWAGGER_CONST_HOST' => env('L5_SWAGGER_CONST_HOST', 'http://my-default-host.com'),
+            // Use APP_URL as the swagger server url (falls back to production url)
+            'L5_SWAGGER_CONST_HOST' => env('APP_URL', 'https://fallou-senghor-bank.onrender.com'),
         ],
     ],
 ];

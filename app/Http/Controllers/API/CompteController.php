@@ -16,12 +16,8 @@ use App\Traits\ApiResponse;
  *     description="API pour la gestion des comptes bancaires"
  * )
  * @OA\Server(
- *     url="http://127.0.0.1:8001",
- *     description="Serveur Local"
- * ),
- * @OA\Server(
- *     url="https://fallou-senghor-bank.onrender.com",
- *     description="Serveur de Production"
+ *     url=L5_SWAGGER_CONST_HOST,
+ *     description="Serveur (défini par L5_SWAGGER_CONST_HOST)"
  * )
  */
 class CompteController extends Controller
