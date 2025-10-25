@@ -313,20 +313,22 @@ return [
          * Constants which can be used in annotations
          */
         'constants' => [
-            // Use APP_URL as the swagger server url (falls back to production url)
-            'L5_SWAGGER_CONST_HOST' => env('APP_URL', 'http://127.0.0.1:8001'),
-            'L5_SWAGGER_CONST_DEVELOPMENT_HOST' => 'http://127.0.0.1:8002',
+            // Use SWAGGER_BASE_URL (if set) to control the Swagger UI server URL shown in docs.
+            // Falls back to APP_URL and then to localhost.
+            'L5_SWAGGER_CONST_HOST' => env('SWAGGER_BASE_URL', env('APP_URL', 'http://127.0.0.1:8001')),
+            'L5_SWAGGER_CONST_DEVELOPMENT_HOST' => env('SWAGGER_DEV_BASE_URL', 'http://127.0.0.1:8002'),
         ],
         /*
          * Servers configuration for Swagger UI
          */
         'servers' => [
             [
-                'url' => env('APP_URL', 'https://fallou.senghor'),
+                // Use SWAGGER_BASE_URL when you want a custom base URL shown in the UI
+                'url' => env('SWAGGER_BASE_URL', env('APP_URL', 'http://127.0.0.1:8001')),
                 'description' => 'Serveur de production',
             ],
             [
-                'url' => 'http://127.0.0.1:8002',
+                'url' => env('SWAGGER_DEV_BASE_URL', 'http://127.0.0.1:8002'),
                 'description' => 'Serveur de développement local',
             ],
         ],
