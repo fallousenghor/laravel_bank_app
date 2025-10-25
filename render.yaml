@@ -32,7 +32,7 @@ services:
       - key: L5_SWAGGER_USE_HTTPS
         value: "true"
       - key: LOG_CHANNEL
-        value: stack
+        value: stderr
       - key: LOG_LEVEL
         value: error
       - key: DB_CONNECTION
