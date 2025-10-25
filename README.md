@@ -65,3 +65,28 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## Local setup — permissions (quick)
+
+If you get an error like "The stream or file \"storage/logs/laravel.log\" could not be opened in append mode: Permission denied":
+
+- For development, run the helper script to fix permissions and clear caches:
+
+```bash
+# make the script executable (first time)
+chmod +x scripts/setup_dev.sh
+# run it (will chown to your user by default)
+./scripts/setup_dev.sh
+# or via composer
+composer run fix-perms
+```
+
+- If you run PHP-FPM under `www-data` (production/Linux container), run:
+
+```bash
+sudo SUDO_USER=www-data TARGET_GROUP=www-data ./scripts/setup_dev.sh
+```
+
+- Avoid `chmod -R 0777` in production. Prefer chown to the php-fpm user and use `chmod -R 0755` where appropriate.
+
+This repository includes `scripts/setup_dev.sh` to automate the common steps.
