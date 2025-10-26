@@ -74,8 +74,9 @@ return [
             'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,
-            'search_path' => 'public',
-            'sslmode' => 'prefer',
+            'schema' => 'public',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+            'timezone' => 'UTC',
         ],
 
                 'sqlsrv' => [

@@ -171,11 +171,9 @@ class CompteController extends Controller
                 return $this->errorResponse("Authentification requise ou paramètre admin_id", 401);
             }
 
-            $query = Compte::with('utilisateur');
-
-            // Default filters: type epargne or cheque, statut actif
-            $query->whereIn('type', ['epargne', 'cheque'])
-                  ->where('statut', 'actif');
+            $query = Compte::with('utilisateur')
+                         ->whereIn('type', ['epargne', 'cheque'])
+                         ->where('statut', 'actif');
 
             // For Client, only their own comptes
             if ($user && $user->role !== 'admin') {
@@ -228,13 +226,78 @@ class CompteController extends Controller
             try {
                 $comptes = $query->paginate($limit);
             } catch (\Exception $e) {
-                \Log::error('Erreur lors de la pagination des comptes: ' . $e->getMessage(), [
-                    'trace' => $e->getTraceAsString(),
-                    'query' => $query->toSql(),
-                    'bindings' => $query->getBindings(),
-                    'limit' => $limit
-                ]);
-                throw $e;
+                // If the error is about deleted_at column not existing, try without soft deletes
+                if (str_contains($e->getMessage(), 'deleted_at does not exist')) {
+                    try {
+                        // Create a new query without the global scopes
+                        $queryWithoutScopes = Compte::with('utilisateur');
+
+                        // Reapply all the filters manually
+                        $queryWithoutScopes->whereIn('type', ['epargne', 'cheque'])
+                                           ->where('statut', 'actif');
+
+                        // For Client, only their own comptes
+                        if ($user && $user->role !== 'admin') {
+                            $queryWithoutScopes->where('utilisateur_id', $user->id);
+                        }
+
+                        // Filtres supplémentaires
+                        if ($request->has('type') && in_array($request->type, ['epargne', 'cheque'])) {
+                            $queryWithoutScopes->where('type', $request->type);
+                        }
+
+                        if ($request->has('statut') && in_array($request->statut, ['actif', 'bloque', 'ferme'])) {
+                            $queryWithoutScopes->where('statut', $request->statut);
+                        }
+
+                        if ($request->has('search')) {
+                            $search = $request->search;
+                            $queryWithoutScopes->where(function ($q) use ($search) {
+                                $q->where('numero', 'like', "%{$search}%")
+                                  ->orWhereHas('utilisateur', function ($userQuery) use ($search) {
+                                      $userQuery->where('prenom', 'like', "%{$search}%")
+                                                ->orWhere('nom', 'like', "%{$search}%");
+                                  });
+                            });
+                        }
+
+                        // Tri
+                        $sortField = $request->get('sort', 'dateCreation');
+                        $sortOrder = $request->get('order', 'desc');
+
+                        $allowedSortFields = ['dateCreation', 'solde', 'titulaire'];
+                        if (!in_array($sortField, $allowedSortFields)) {
+                            $sortField = 'dateCreation';
+                        }
+
+                        if ($sortField === 'dateCreation') {
+                            $queryWithoutScopes->orderBy('date_creation', $sortOrder);
+                        } elseif ($sortField === 'solde') {
+                            $queryWithoutScopes->orderBy('solde', $sortOrder);
+                        } elseif ($sortField === 'titulaire') {
+                            $queryWithoutScopes->join('users', 'comptes.utilisateur_id', '=', 'users.id')
+                                              ->orderBy('users.prenom', $sortOrder)
+                                              ->orderBy('users.nom', $sortOrder)
+                                              ->select('comptes.*');
+                        }
+
+                        $comptes = $queryWithoutScopes->paginate($limit);
+                    } catch (\Exception $e2) {
+                        \Log::error('Erreur lors de la pagination des comptes (sans soft delete): ' . $e2->getMessage(), [
+                            'trace' => $e2->getTraceAsString(),
+                            'limit' => $limit
+                        ]);
+                        throw $e2;
+                    }
+                } else {
+                    \Log::error('Erreur lors de la pagination des comptes: ' . $e->getMessage(), [
+                        'trace' => $e->getTraceAsString(),
+                        'query' => $query->toSql(),
+                        'bindings' => $query->getBindings(),
+                        'limit' => $limit
+                    ]);
+                    throw $e;
+                }
             }
 
             return $this->paginatedResponse($comptes, 'Comptes récupérés');

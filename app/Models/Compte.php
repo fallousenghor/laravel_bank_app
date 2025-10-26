@@ -59,10 +59,12 @@ class Compte extends Model
             $compte->numero = $numero;
         });
 
-        // Global scope pour exclure les comptes supprimés
-        static::addGlobalScope('nonSupprimes', function ($builder) {
-            $builder->whereNull('deleted_at');
-        });
+        // Override soft delete scope to not apply if column doesn't exist
+        if (!Schema::hasColumn('comptes', 'deleted_at')) {
+            static::addGlobalScope('softDeleting', function ($builder) {
+                // Do nothing - no soft delete scope applied
+            });
+        }
     }
 
     public function utilisateur()
