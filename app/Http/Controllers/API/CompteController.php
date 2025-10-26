@@ -16,14 +16,7 @@ use App\Traits\ApiResponse;
  *     version="1.0.0",
  *     description="API pour la gestion des comptes bancaires"
  * )
- * @OA\Server(
- *     url="http://api.banque.example.com",
- *     description="Serveur de production"
- * )
- * @OA\Server(
- *     url="http://localhost:8000",
- *     description="Serveur de développement"
- * )
+ * (Servers are generated from configuration (APP_URL / SWAGGER_BASE_URL) so they are set per-environment.)
  * @OA\SecurityScheme(
  *     securityScheme="bearerAuth",
  *     type="http",
@@ -97,6 +90,13 @@ class CompteController extends Controller
      *         required=false,
      *         @OA\Schema(type="string", enum={"asc", "desc"})
      *     ),
+     *     @OA\Parameter(
+     *         name="admin_id",
+     *         in="query",
+     *         description="ID de l'admin (pour accès temporaire sans authentification)",
+     *         required=false,
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Liste des comptes récupérée avec succès",
@@ -156,8 +156,10 @@ class CompteController extends Controller
         try {
             $user = $request->user();
 
-            if (!$user) {
-                return $this->errorResponse("Authentification requise", 401);
+            // Allow access without authentication for now, using admin_id parameter if provided
+            $adminId = $request->query('admin_id');
+            if (!$user && !$adminId) {
+                return $this->errorResponse("Authentification requise ou paramètre admin_id", 401);
             }
 
             $query = Compte::with('utilisateur');
@@ -167,7 +169,7 @@ class CompteController extends Controller
                   ->where('statut', 'Actif');
 
             // For Client, only their own comptes
-            if ($user->role !== 'admin') {
+            if ($user && $user->role !== 'admin') {
                 $query->where('utilisateur_id', $user->id);
             }
 

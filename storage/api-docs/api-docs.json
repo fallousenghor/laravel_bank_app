@@ -7,12 +7,12 @@
     },
     "servers": [
         {
-            "url": "http://api.banque.example.com",
-            "description": "Serveur de production"
+            "url": "http://fallou.senghor.bank.com:8000",
+            "description": "Serveur Docker Nginx"
         },
         {
-            "url": "http://localhost:8000",
-            "description": "Serveur de développement"
+            "url": "http://api.banque.example.com",
+            "description": "Serveur de production"
         }
     ],
     "paths": {
@@ -107,6 +107,16 @@
                                 "asc",
                                 "desc"
                             ]
+                        }
+                    },
+                    {
+                        "name": "admin_id",
+                        "in": "query",
+                        "description": "ID de l'admin (pour accès temporaire sans authentification)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
                         }
                     }
                 ],
@@ -296,14 +306,14 @@
                 ]
             }
         },
-        "/fallou/v1/comptes/{id}": {
+        "/api/v1/comptes/{id}": {
             "get": {
                 "tags": [
                     "Comptes"
                 ],
                 "summary": "Obtenir les détails d'un compte spécifique",
                 "description": "Retourne les détails d'un compte bancaire spécifique avec son utilisateur",
-                "operationId": "43258b8f24cf6c37cd8ee262cf9a7d9f",
+                "operationId": "73c661e1b184667f1bb194f22d82cb7d",
                 "parameters": [
                     {
                         "name": "id",
@@ -323,44 +333,96 @@
                             "application/json": {
                                 "schema": {
                                     "properties": {
-                                        "id": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid",
+                                                    "example": "a02eab71-0ae7-48cf-bc37-92d0493737e1"
+                                                },
+                                                "numeroCompte": {
+                                                    "type": "string",
+                                                    "example": "CPT123456"
+                                                },
+                                                "titulaire": {
+                                                    "type": "string",
+                                                    "example": "Amadou Diallo"
+                                                },
+                                                "type": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Épargne",
+                                                        "Chèque"
+                                                    ],
+                                                    "example": "Épargne"
+                                                },
+                                                "solde": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 1000.5
+                                                },
+                                                "devise": {
+                                                    "type": "string",
+                                                    "example": "FCFA"
+                                                },
+                                                "statut": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Actif",
+                                                        "Bloqué",
+                                                        "Fermé"
+                                                    ],
+                                                    "example": "Actif"
+                                                },
+                                                "dateCreation": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2023-10-23T00:00:00Z"
+                                                },
+                                                "metadata": {
+                                                    "properties": {
+                                                        "derniereModification": {
+                                                            "type": "string",
+                                                            "format": "date-time",
+                                                            "example": "2023-06-10T14:30:00Z"
+                                                        },
+                                                        "version": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "message": {
                                             "type": "string",
-                                            "format": "uuid",
-                                            "example": "a02eab71-0ae7-48cf-bc37-92d0493737e1"
+                                            "example": "Détails du compte"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Non authentifié",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
                                         },
-                                        "numero": {
+                                        "message": {
                                             "type": "string",
-                                            "example": "CPT123456"
-                                        },
-                                        "type": {
-                                            "type": "string",
-                                            "enum": [
-                                                "Épargne",
-                                                "Chèque"
-                                            ],
-                                            "example": "Épargne"
-                                        },
-                                        "solde": {
-                                            "type": "number",
-                                            "format": "float",
-                                            "example": 1000.5
-                                        },
-                                        "statut": {
-                                            "type": "string",
-                                            "enum": [
-                                                "Actif",
-                                                "Bloqué"
-                                            ],
-                                            "example": "Actif"
-                                        },
-                                        "date_creation": {
-                                            "type": "string",
-                                            "format": "date",
-                                            "example": "2023-10-23"
-                                        },
-                                        "utilisateur_id": {
-                                            "type": "integer",
-                                            "example": 1
+                                            "example": "Non authentifié"
                                         }
                                     },
                                     "type": "object"
@@ -369,9 +431,31 @@
                         }
                     },
                     "404": {
-                        "description": "Compte non trouvé"
+                        "description": "Compte non trouvé",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Compte non trouvé"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/v1/comptes/mine": {
