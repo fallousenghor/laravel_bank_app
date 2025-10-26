@@ -357,16 +357,31 @@ class CompteController extends Controller
      */
     public function mine(MineComptesRequest $request)
     {
-        // When unauthenticated, allow passing `user_id` as a query parameter for testing.
-        $user = $request->user();
-        $userId = $user?->id ?? $request->validated()['user_id'] ?? null;
+        try {
+            // When unauthenticated, allow passing `user_id` as a query parameter for testing.
+            $user = $request->user();
+            $userId = $user?->id ?? $request->validated()['user_id'] ?? null;
 
-        if (!$userId) {
-            return $this->errorResponse("Paramètre 'user_id' requis lorsque non authentifié", 400);
+            if (!$userId) {
+                return $this->errorResponse("Paramètre 'user_id' requis lorsque non authentifié", 400);
+            }
+
+            // Verify if user exists
+            $userExists = \App\Models\User::where('id', $userId)->exists();
+            if (!$userExists) {
+                return $this->errorResponse("Utilisateur non trouvé", 404);
+            }
+
+            $comptes = $this->compteRepository->getActiveComptesByUserId($userId);
+            return $this->successResponse(CompteResource::collection($comptes), 'Comptes de l\'utilisateur');
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors de la récupération des comptes utilisateur: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $userId ?? 'non défini',
+                'request' => $request->all()
+            ]);
+            return $this->errorResponse("Erreur interne du serveur", 500);
         }
-
-        $comptes = $this->compteRepository->getActiveComptesByUserId($userId);
-        return $this->successResponse(CompteResource::collection($comptes), 'Comptes de l\'utilisateur');
     }
 
     /**
