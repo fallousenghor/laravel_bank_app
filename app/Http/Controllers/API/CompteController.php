@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CompteResource;
+use App\Models\Compte;
 use Illuminate\Http\Request;
 use OpenApi\Annotations as OA;
 use App\Interfaces\CompteRepositoryInterface;
@@ -153,14 +154,24 @@ class CompteController extends Controller
     public function index(Request $request)
     {
         try {
-            // Authentication is temporarily disabled for testing.
-            // If a user is authenticated and has role 'admin' we could apply admin-only
-            // restrictions here; for now allow access to list comptes to simplify testing.
             $user = $request->user();
 
-            $query = \App\Models\Compte::with('utilisateur');
+            if (!$user) {
+                return $this->errorResponse("Authentification requise", 401);
+            }
 
-            // Filtres
+            $query = Compte::with('utilisateur');
+
+            // Default filters: type Épargne or Chèque, statut Actif
+            $query->whereIn('type', ['Épargne', 'Chèque'])
+                  ->where('statut', 'Actif');
+
+            // For Client, only their own comptes
+            if ($user->role !== 'admin') {
+                $query->where('utilisateur_id', $user->id);
+            }
+
+            // Filtres supplémentaires
             if ($request->has('type') && in_array($request->type, ['epargne', 'cheque'])) {
                 $type = $request->type === 'epargne' ? 'Épargne' : 'Chèque';
                 $query->where('type', $type);
@@ -183,20 +194,23 @@ class CompteController extends Controller
             }
 
             // Tri
-            $sortField = $request->get('sort', 'date_creation');
+            $sortField = $request->get('sort', 'dateCreation');
             $sortOrder = $request->get('order', 'desc');
 
-            $allowedSortFields = ['date_creation', 'solde', 'numero'];
+            $allowedSortFields = ['dateCreation', 'solde', 'titulaire'];
             if (!in_array($sortField, $allowedSortFields)) {
-                $sortField = 'date_creation';
+                $sortField = 'dateCreation';
             }
 
-            if ($sortField === 'date_creation') {
+            if ($sortField === 'dateCreation') {
                 $query->orderBy('date_creation', $sortOrder);
             } elseif ($sortField === 'solde') {
                 $query->orderBy('solde', $sortOrder);
-            } elseif ($sortField === 'numero') {
-                $query->orderBy('numero', $sortOrder);
+            } elseif ($sortField === 'titulaire') {
+                $query->join('users', 'comptes.utilisateur_id', '=', 'users.id')
+                      ->orderBy('users.prenom', $sortOrder)
+                      ->orderBy('users.nom', $sortOrder)
+                      ->select('comptes.*');
             }
 
             // Pagination
@@ -216,10 +230,11 @@ class CompteController extends Controller
 
     /**
      * @OA\Get(
-     *     path="/fallou/v1/comptes/{id}",
+     *     path="/api/v1/comptes/{id}",
      *     tags={"Comptes"},
      *     summary="Obtenir les détails d'un compte spécifique",
      *     description="Retourne les détails d'un compte bancaire spécifique avec son utilisateur",
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -231,18 +246,39 @@ class CompteController extends Controller
      *         response=200,
      *         description="Détails du compte récupérés avec succès",
      *         @OA\JsonContent(
-     *             @OA\Property(property="id", type="string", format="uuid", example="a02eab71-0ae7-48cf-bc37-92d0493737e1"),
-     *             @OA\Property(property="numero", type="string", example="CPT123456"),
-     *             @OA\Property(property="type", type="string", enum={"Épargne", "Chèque"}, example="Épargne"),
-     *             @OA\Property(property="solde", type="number", format="float", example=1000.50),
-     *             @OA\Property(property="statut", type="string", enum={"Actif", "Bloqué"}, example="Actif"),
-     *             @OA\Property(property="date_creation", type="string", format="date", example="2023-10-23"),
-     *             @OA\Property(property="utilisateur_id", type="integer", example=1)
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="id", type="string", format="uuid", example="a02eab71-0ae7-48cf-bc37-92d0493737e1"),
+     *                 @OA\Property(property="numeroCompte", type="string", example="CPT123456"),
+     *                 @OA\Property(property="titulaire", type="string", example="Amadou Diallo"),
+     *                 @OA\Property(property="type", type="string", enum={"Épargne", "Chèque"}, example="Épargne"),
+     *                 @OA\Property(property="solde", type="number", format="float", example=1000.50),
+     *                 @OA\Property(property="devise", type="string", example="FCFA"),
+     *                 @OA\Property(property="statut", type="string", enum={"Actif", "Bloqué", "Fermé"}, example="Actif"),
+     *                 @OA\Property(property="dateCreation", type="string", format="date-time", example="2023-10-23T00:00:00Z"),
+     *                 @OA\Property(property="metadata", type="object",
+     *                     @OA\Property(property="derniereModification", type="string", format="date-time", example="2023-06-10T14:30:00Z"),
+     *                     @OA\Property(property="version", type="integer", example=1)
+     *                 )
+     *             ),
+     *             @OA\Property(property="message", type="string", example="Détails du compte")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Non authentifié",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Non authentifié")
      *         )
      *     ),
      *     @OA\Response(
      *         response=404,
-     *         description="Compte non trouvé"
+     *         description="Compte non trouvé",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Compte non trouvé")
+     *         )
      *     )
      * )
      */
