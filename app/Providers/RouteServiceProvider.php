@@ -29,8 +29,12 @@ class RouteServiceProvider extends ServiceProvider
         });
 
         $this->routes(function () {
+            // Use the conventional 'api' prefix so API routes are available under /api/...
+            // Previously this project used a custom 'fallou' prefix which caused
+            // requests to /api/v1/... to return 404. Switch to 'api' to match
+            // the OpenAPI / Swagger docs and common Laravel conventions.
             Route::middleware(['api', 'cors'])
-                ->prefix('fallou')
+                ->prefix('api')
                 ->group(base_path('routes/api.php'));
 
             Route::middleware('web')

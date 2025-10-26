@@ -69,16 +69,31 @@ trait ApiResponse
     {
         if ($paginator instanceof LengthAwarePaginator) {
             $pagination = [
-                'current_page' => $paginator->currentPage(),
-                'per_page' => $paginator->perPage(),
-                'total' => $paginator->total(),
-                'last_page' => $paginator->lastPage(),
-                'from' => $paginator->firstItem(),
-                'to' => $paginator->lastItem(),
-                'data' => $paginator->items(),
+                'currentPage' => $paginator->currentPage(),
+                'totalPages' => $paginator->lastPage(),
+                'totalItems' => $paginator->total(),
+                'itemsPerPage' => $paginator->perPage(),
+                'hasNext' => $paginator->hasMorePages(),
+                'hasPrevious' => $paginator->currentPage() > 1,
             ];
 
-            return $this->successResponse($pagination, $message, $status);
+            $response = [
+                'success' => true,
+                'data' => $paginator->items(),
+                'pagination' => $pagination,
+                'links' => [
+                    'self' => $paginator->url($paginator->currentPage()),
+                    'next' => $paginator->hasMorePages() ? $paginator->url($paginator->currentPage() + 1) : null,
+                    'first' => $paginator->url(1),
+                    'last' => $paginator->url($paginator->lastPage()),
+                ]
+            ];
+
+            if ($message) {
+                $response['message'] = $message;
+            }
+
+            return response()->json($response, $status);
         }
 
         return $this->successResponse($paginator, $message, $status);

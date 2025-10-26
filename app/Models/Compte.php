@@ -5,11 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class Compte extends Model
 {
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
         'type',
@@ -55,10 +56,33 @@ class Compte extends Model
 
             $compte->numero = $numero;
         });
+
+        // Global scope pour exclure les comptes supprimés
+        static::addGlobalScope('nonSupprimes', function ($builder) {
+            $builder->whereNull('deleted_at');
+        });
     }
 
     public function utilisateur()
     {
         return $this->belongsTo(User::class, 'utilisateur_id');
+    }
+
+    /**
+     * Scope local pour récupérer un compte par son numéro
+     */
+    public function scopeNumero($query, $numero)
+    {
+        return $query->where('numero', $numero);
+    }
+
+    /**
+     * Scope local pour récupérer les comptes d'un client basé sur le téléphone
+     */
+    public function scopeClient($query, $telephone)
+    {
+        return $query->whereHas('utilisateur', function ($q) use ($telephone) {
+            $q->where('telephone', $telephone);
+        });
     }
 }

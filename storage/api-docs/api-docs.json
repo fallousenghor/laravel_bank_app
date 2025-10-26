@@ -5,25 +5,107 @@
         "description": "API pour la gestion des comptes bancaires",
         "version": "1.0.0"
     },
+    "servers": [
+        {
+            "url": "http://api.banque.example.com",
+            "description": "Serveur de production"
+        },
+        {
+            "url": "http://localhost:8000",
+            "description": "Serveur de développement"
+        }
+    ],
     "paths": {
-        "/fallou/v1/comptes": {
+        "/api/v1/comptes": {
             "get": {
                 "tags": [
                     "Comptes"
                 ],
-                "summary": "Liste tous les comptes bancaires",
-                "description": "Retourne la liste de tous les comptes bancaires avec leurs utilisateurs",
-                "operationId": "2452780839a3110f526226e57df4cfbd",
+                "summary": "Lister tous les comptes",
+                "description": "Retourne la liste paginée de tous les comptes bancaires non supprimés",
+                "operationId": "03ebbdde72897aa34cb2d14fa567a91e",
                 "parameters": [
                     {
-                        "name": "as_admin",
+                        "name": "page",
                         "in": "query",
-                        "description": "Paramètre pour simuler un accès administrateur (utiliser 1 pour les tests)",
+                        "description": "Numéro de page",
                         "required": false,
                         "schema": {
                             "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Nombre d'éléments par page",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 10,
+                            "maximum": 100
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Filtrer par type",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
                             "enum": [
-                                1
+                                "epargne",
+                                "cheque"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "statut",
+                        "in": "query",
+                        "description": "Filtrer par statut",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "actif",
+                                "bloque",
+                                "ferme"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Recherche par titulaire ou numéro",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "Tri",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "dateCreation",
+                                "solde",
+                                "titulaire"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "order",
+                        "in": "query",
+                        "description": "Ordre",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
                             ]
                         }
                     }
@@ -34,51 +116,154 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "properties": {
-                                            "id": {
-                                                "type": "string",
-                                                "format": "uuid",
-                                                "example": "a02eab71-0ae7-48cf-bc37-92d0493737e1"
-                                            },
-                                            "numero": {
-                                                "type": "string",
-                                                "example": "CPT123456"
-                                            },
-                                            "type": {
-                                                "type": "string",
-                                                "enum": [
-                                                    "Épargne",
-                                                    "Chèque"
-                                                ],
-                                                "example": "Épargne"
-                                            },
-                                            "solde": {
-                                                "type": "number",
-                                                "format": "float",
-                                                "example": 1000.5
-                                            },
-                                            "statut": {
-                                                "type": "string",
-                                                "enum": [
-                                                    "Actif",
-                                                    "Bloqué"
-                                                ],
-                                                "example": "Actif"
-                                            },
-                                            "date_creation": {
-                                                "type": "string",
-                                                "format": "date",
-                                                "example": "2023-10-23"
-                                            },
-                                            "utilisateur_id": {
-                                                "type": "integer",
-                                                "example": 1
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "format": "uuid",
+                                                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                                                    },
+                                                    "numeroCompte": {
+                                                        "type": "string",
+                                                        "example": "C00123456"
+                                                    },
+                                                    "titulaire": {
+                                                        "type": "string",
+                                                        "example": "Amadou Diallo"
+                                                    },
+                                                    "type": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "Épargne",
+                                                            "Chèque"
+                                                        ],
+                                                        "example": "epargne"
+                                                    },
+                                                    "solde": {
+                                                        "type": "number",
+                                                        "format": "float",
+                                                        "example": 1250000
+                                                    },
+                                                    "devise": {
+                                                        "type": "string",
+                                                        "example": "FCFA"
+                                                    },
+                                                    "dateCreation": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2023-03-15T00:00:00Z"
+                                                    },
+                                                    "statut": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "Actif",
+                                                            "Bloqué",
+                                                            "Fermé"
+                                                        ],
+                                                        "example": "bloque"
+                                                    },
+                                                    "motifBlocage": {
+                                                        "type": "string",
+                                                        "example": "Inactivité de 30+ jours",
+                                                        "nullable": true
+                                                    },
+                                                    "metadata": {
+                                                        "properties": {
+                                                            "derniereModification": {
+                                                                "type": "string",
+                                                                "format": "date-time",
+                                                                "example": "2023-06-10T14:30:00Z"
+                                                            },
+                                                            "version": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "type": "object"
                                             }
                                         },
-                                        "type": "object"
-                                    }
+                                        "pagination": {
+                                            "properties": {
+                                                "currentPage": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "totalPages": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                },
+                                                "totalItems": {
+                                                    "type": "integer",
+                                                    "example": 25
+                                                },
+                                                "itemsPerPage": {
+                                                    "type": "integer",
+                                                    "example": 10
+                                                },
+                                                "hasNext": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                },
+                                                "hasPrevious": {
+                                                    "type": "boolean",
+                                                    "example": false
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "links": {
+                                            "properties": {
+                                                "self": {
+                                                    "type": "string",
+                                                    "example": "/api/v1/comptes?page=1&limit=10"
+                                                },
+                                                "next": {
+                                                    "type": "string",
+                                                    "example": "/api/v1/comptes?page=2&limit=10"
+                                                },
+                                                "first": {
+                                                    "type": "string",
+                                                    "example": "/api/v1/comptes?page=1&limit=10"
+                                                },
+                                                "last": {
+                                                    "type": "string",
+                                                    "example": "/api/v1/comptes?page=3&limit=10"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Non authentifié",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Non authentifié"
+                                        }
+                                    },
+                                    "type": "object"
                                 }
                             }
                         }
@@ -95,7 +280,7 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "Accès non autorisé. Pour les tests, ajoutez ?as_admin=1"
+                                            "example": "Accès non autorisé"
                                         }
                                     },
                                     "type": "object"
@@ -103,7 +288,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/fallou/v1/comptes/{id}": {
@@ -184,22 +374,23 @@
                 }
             }
         },
-        "/fallou/v1/comptes/mine": {
+        "/api/v1/comptes/mine": {
             "get": {
                 "tags": [
                     "Comptes"
                 ],
                 "summary": "Obtenir les comptes du client connecté",
-                "description": "Retourne la liste des comptes actifs du client authentifié",
-                "operationId": "a24d42c8cf1d66d22f76b6543332fc54",
+                "description": "Retourne la liste des comptes actifs du client authentifié ou via user_id en paramètre",
+                "operationId": "c7590a97f5879aacdc637cc45fcdd51d",
                 "parameters": [
                     {
                         "name": "user_id",
                         "in": "query",
-                        "description": "ID de l'utilisateur pour les tests (remplace l'authentification)",
+                        "description": "ID de l'utilisateur (requis si non authentifié)",
                         "required": false,
                         "schema": {
-                            "type": "integer"
+                            "type": "integer",
+                            "example": 1
                         }
                     }
                 ],
@@ -209,44 +400,108 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "properties": {
-                                            "id": {
-                                                "type": "string",
-                                                "format": "uuid"
-                                            },
-                                            "numero": {
-                                                "type": "string"
-                                            },
-                                            "type": {
-                                                "type": "string",
-                                                "enum": [
-                                                    "Épargne",
-                                                    "Chèque"
-                                                ]
-                                            },
-                                            "solde": {
-                                                "type": "number",
-                                                "format": "float"
-                                            },
-                                            "statut": {
-                                                "type": "string",
-                                                "enum": [
-                                                    "Actif",
-                                                    "Bloqué"
-                                                ]
-                                            },
-                                            "date_creation": {
-                                                "type": "string",
-                                                "format": "date"
-                                            },
-                                            "utilisateur_id": {
-                                                "type": "integer"
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "format": "uuid",
+                                                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                                                    },
+                                                    "numeroCompte": {
+                                                        "type": "string",
+                                                        "example": "C00123456"
+                                                    },
+                                                    "titulaire": {
+                                                        "type": "string",
+                                                        "example": "Amadou Diallo"
+                                                    },
+                                                    "type": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "Épargne",
+                                                            "Chèque"
+                                                        ],
+                                                        "example": "epargne"
+                                                    },
+                                                    "solde": {
+                                                        "type": "number",
+                                                        "format": "float",
+                                                        "example": 1250000
+                                                    },
+                                                    "devise": {
+                                                        "type": "string",
+                                                        "example": "FCFA"
+                                                    },
+                                                    "dateCreation": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2023-03-15T00:00:00Z"
+                                                    },
+                                                    "statut": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "Actif",
+                                                            "Bloqué",
+                                                            "Fermé"
+                                                        ],
+                                                        "example": "actif"
+                                                    },
+                                                    "motifBlocage": {
+                                                        "type": "string",
+                                                        "example": null,
+                                                        "nullable": true
+                                                    },
+                                                    "metadata": {
+                                                        "properties": {
+                                                            "derniereModification": {
+                                                                "type": "string",
+                                                                "format": "date-time",
+                                                                "example": "2023-06-10T14:30:00Z"
+                                                            },
+                                                            "version": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "type": "object"
                                             }
                                         },
-                                        "type": "object"
-                                    }
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Comptes de l'utilisateur"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Paramètre user_id requis lorsque non authentifié",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Paramètre 'user_id' requis lorsque non authentifié"
+                                        }
+                                    },
+                                    "type": "object"
                                 }
                             }
                         }
@@ -263,7 +518,7 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "Non authentifié. Pour les tests, fournissez ?user_id=<id>"
+                                            "example": "Non authentifié"
                                         }
                                     },
                                     "type": "object"
@@ -271,7 +526,21 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
             }
         }
     },

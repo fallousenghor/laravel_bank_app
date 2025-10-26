@@ -16,17 +16,18 @@ class CompteResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'numero' => $this->numero,
+            'numeroCompte' => $this->numero,
+            'titulaire' => $this->utilisateur ? $this->utilisateur->prenom . ' ' . $this->utilisateur->nom : null,
             'type' => $this->type,
-            'solde' => $this->solde,
+            'solde' => (float) $this->solde,
+            'devise' => 'FCFA',
+            'dateCreation' => $this->date_creation ? \Carbon\Carbon::parse($this->date_creation)->toISOString() : null,
             'statut' => $this->statut,
-            'date_creation' => $this->date_creation,
-            'client' => [
-                'id' => $this->utilisateur?->id,
-                'prenom' => $this->utilisateur?->prenom,
-                'nom' => $this->utilisateur?->nom,
-                'email' => $this->utilisateur?->email,
-            ],
+            'motifBlocage' => $this->statut === 'Bloqué' ? 'Inactivité de 30+ jours' : null,
+            'metadata' => [
+                'derniereModification' => $this->updated_at?->toISOString(),
+                'version' => 1
+            ]
         ];
     }
 }

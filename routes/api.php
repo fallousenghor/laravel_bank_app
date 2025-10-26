@@ -20,11 +20,13 @@ Route::prefix('v1')->group(function () {
     Route::get('/users/{id}', [UserController::class, 'show']);
 
     // Routes pour les comptes
-    // Récupérer les comptes du client (endpoint disponible en clair pour les tests)
+    Route::middleware(['throttle:api', 'rating'])->group(function () {
+    // Temporarily disable authentication for local/testing (no token required)
+    // NOTE: Re-enable `->middleware('auth:sanctum')` when moving back to secured mode.
+    Route::get('comptes', [CompteController::class, 'index']);
     Route::get('comptes/mine', [CompteController::class, 'mine']);
-
-    // Ressource complète pour les comptes (index est protégé dans le contrôleur pour les admins)
-    Route::apiResource('comptes', CompteController::class);
+        Route::get('comptes/{id}', [CompteController::class, 'show']);
+    });
 
     // Routes pour les transactions
     Route::get('/transactions', [TransactionController::class, 'index']);
