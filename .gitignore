@@ -17,3 +17,6 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+
+# Ignore generated OpenAPI docs so production generates them at deploy
+/storage/api-docs/

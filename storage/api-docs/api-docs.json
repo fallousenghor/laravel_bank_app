@@ -7,8 +7,8 @@
     },
     "servers": [
         {
-            "url": "http://fallou.senghor.bank.com:8000",
-            "description": "Serveur Docker Nginx"
+            "url": "https://fallou.senghor.bank.com",
+            "description": "Serveur de production"
         },
         {
             "url": "http://api.banque.example.com",
