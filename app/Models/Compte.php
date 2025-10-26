@@ -13,11 +13,13 @@ class Compte extends Model
     use HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
+        'numero',
         'type',
         'solde',
         'statut',
         'date_creation',
-        'utilisateur_id'
+        'utilisateur_id',
+        'devise'
     ];
 
     /**
@@ -84,5 +86,22 @@ class Compte extends Model
         return $query->whereHas('utilisateur', function ($q) use ($telephone) {
             $q->where('telephone', $telephone);
         });
+    }
+
+    /**
+     * Get the solde attribute - calculated from transactions
+     */
+    public function getSoldeAttribute($value)
+    {
+        // If there are transactions, calculate balance from them
+        if ($this->transactions()->exists()) {
+            return $this->transactions()
+                ->selectRaw('SUM(CASE WHEN type = \'depot\' THEN montant WHEN type = \'retrait\' THEN -montant ELSE 0 END) as calculated_solde')
+                ->first()
+                ->calculated_solde ?? $value;
+        }
+
+        // Otherwise return stored value (for new accounts)
+        return $value;
     }
 }

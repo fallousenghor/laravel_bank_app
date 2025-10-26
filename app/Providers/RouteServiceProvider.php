@@ -34,7 +34,7 @@ class RouteServiceProvider extends ServiceProvider
             // requests to /api/v1/... to return 404. Switch to 'api' to match
             // the OpenAPI / Swagger docs and common Laravel conventions.
             Route::middleware(['api', 'cors'])
-                ->prefix('api')
+                ->prefix('senghorfallou')
                 ->group(base_path('routes/api.php'));
 
             Route::middleware('web')

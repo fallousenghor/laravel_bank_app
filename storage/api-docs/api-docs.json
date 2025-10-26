@@ -5,25 +5,15 @@
         "description": "API pour la gestion des comptes bancaires",
         "version": "1.0.0"
     },
-    "servers": [
-        {
-            "url": "https://fallou.senghor.bank.com",
-            "description": "Serveur de production"
-        },
-        {
-            "url": "http://api.banque.example.com",
-            "description": "Serveur de production"
-        }
-    ],
     "paths": {
-        "/api/v1/comptes": {
+        "/senghorfallou/v1/comptes": {
             "get": {
                 "tags": [
                     "Comptes"
                 ],
                 "summary": "Lister tous les comptes",
                 "description": "Retourne la liste paginée de tous les comptes bancaires non supprimés",
-                "operationId": "03ebbdde72897aa34cb2d14fa567a91e",
+                "operationId": "aa1be305e6e07c73871a5f452be73791",
                 "parameters": [
                     {
                         "name": "page",
@@ -235,19 +225,19 @@
                                             "properties": {
                                                 "self": {
                                                     "type": "string",
-                                                    "example": "/api/v1/comptes?page=1&limit=10"
+                                                    "example": "/senghorfallou/v1/comptes?page=1&limit=10"
                                                 },
                                                 "next": {
                                                     "type": "string",
-                                                    "example": "/api/v1/comptes?page=2&limit=10"
+                                                    "example": "/senghorfallou/v1/comptes?page=2&limit=10"
                                                 },
                                                 "first": {
                                                     "type": "string",
-                                                    "example": "/api/v1/comptes?page=1&limit=10"
+                                                    "example": "/senghorfallou/v1/comptes?page=1&limit=10"
                                                 },
                                                 "last": {
                                                     "type": "string",
-                                                    "example": "/api/v1/comptes?page=3&limit=10"
+                                                    "example": "/senghorfallou/v1/comptes?page=3&limit=10"
                                                 }
                                             },
                                             "type": "object"
@@ -304,16 +294,240 @@
                         "bearerAuth": []
                     }
                 ]
+            },
+            "post": {
+                "tags": [
+                    "Comptes"
+                ],
+                "summary": "Créer un nouveau compte bancaire",
+                "description": "Crée un nouveau compte bancaire pour un client existant ou nouveau",
+                "operationId": "cb215618a13d4610b6a77feda9613a47",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "type",
+                                    "solde",
+                                    "client"
+                                ],
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "epargne",
+                                            "cheque"
+                                        ],
+                                        "example": "epargne"
+                                    },
+                                    "solde": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "minimum": 10000,
+                                        "example": 50000
+                                    },
+                                    "devise": {
+                                        "type": "string",
+                                        "default": "FCFA",
+                                        "example": "FCFA"
+                                    },
+                                    "client": {
+                                        "required": [
+                                            "titulaire",
+                                            "email",
+                                            "telephone",
+                                            "adresse"
+                                        ],
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "example": null,
+                                                "nullable": true
+                                            },
+                                            "titulaire": {
+                                                "type": "string",
+                                                "example": "Amadou Diallo"
+                                            },
+                                            "nci": {
+                                                "type": "string",
+                                                "example": "1234567890123",
+                                                "nullable": true
+                                            },
+                                            "email": {
+                                                "type": "string",
+                                                "format": "email",
+                                                "example": "amadou.diallo@email.com"
+                                            },
+                                            "telephone": {
+                                                "type": "string",
+                                                "example": "771234567"
+                                            },
+                                            "adresse": {
+                                                "type": "string",
+                                                "example": "Dakar, Sénégal"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Compte créé avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid",
+                                                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                                                },
+                                                "numero": {
+                                                    "type": "string",
+                                                    "example": "CPT123456"
+                                                },
+                                                "titulaire": {
+                                                    "type": "string",
+                                                    "example": "Amadou Diallo"
+                                                },
+                                                "type": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "cheque",
+                                                        "epargne"
+                                                    ],
+                                                    "example": "cheque"
+                                                },
+                                                "solde": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 50000
+                                                },
+                                                "devise": {
+                                                    "type": "string",
+                                                    "example": "FCFA"
+                                                },
+                                                "statut": {
+                                                    "type": "string",
+                                                    "example": "Actif"
+                                                },
+                                                "dateCreation": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2023-10-26T10:00:00Z"
+                                                },
+                                                "client": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "nom": {
+                                                            "type": "string",
+                                                            "example": "Diallo"
+                                                        },
+                                                        "prenom": {
+                                                            "type": "string",
+                                                            "example": "Amadou"
+                                                        },
+                                                        "email": {
+                                                            "type": "string",
+                                                            "example": "amadou.diallo@email.com"
+                                                        },
+                                                        "telephone": {
+                                                            "type": "string",
+                                                            "example": "771234567"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Compte créé avec succès"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Données invalides",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Les données fournies sont invalides"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erreur de validation",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Erreur de validation"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
-        "/api/v1/comptes/{id}": {
+        "/senghorfallou/v1/comptes/{id}": {
             "get": {
                 "tags": [
                     "Comptes"
                 ],
                 "summary": "Obtenir les détails d'un compte spécifique",
                 "description": "Retourne les détails d'un compte bancaire spécifique avec son utilisateur",
-                "operationId": "73c661e1b184667f1bb194f22d82cb7d",
+                "operationId": "34d22281b22a0a3b4b88aa3cc8183779",
                 "parameters": [
                     {
                         "name": "id",
@@ -458,14 +672,14 @@
                 ]
             }
         },
-        "/api/v1/comptes/mine": {
+        "/senghorfallou/v1/comptes/mine": {
             "get": {
                 "tags": [
                     "Comptes"
                 ],
                 "summary": "Obtenir les comptes du client connecté",
                 "description": "Retourne la liste des comptes actifs du client authentifié ou via user_id en paramètre",
-                "operationId": "c7590a97f5879aacdc637cc45fcdd51d",
+                "operationId": "5dd6c4337febc845d974c83f44e38030",
                 "parameters": [
                     {
                         "name": "user_id",

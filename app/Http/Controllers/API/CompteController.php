@@ -3,9 +3,18 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ListComptesRequest;
+use App\Http\Requests\ShowCompteRequest;
+use App\Http\Requests\MineComptesRequest;
+use App\Http\Requests\StoreCompteRequest;
 use App\Http\Resources\CompteResource;
 use App\Models\Compte;
+use App\Models\User;
+use App\Events\ClientCreated;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 use OpenApi\Annotations as OA;
 use App\Interfaces\CompteRepositoryInterface;
 use App\Traits\ApiResponse;
@@ -36,7 +45,7 @@ class CompteController extends Controller
 
     /**
      * @OA\Get(
-     *     path="/api/v1/comptes",
+     *     path="/senghorfallou/v1/comptes",
      *     tags={"Comptes"},
      *     summary="Lister tous les comptes",
      *     description="Retourne la liste paginée de tous les comptes bancaires non supprimés",
@@ -126,10 +135,10 @@ class CompteController extends Controller
      *                 @OA\Property(property="hasPrevious", type="boolean", example=false)
      *             ),
      *             @OA\Property(property="links", type="object",
-     *                 @OA\Property(property="self", type="string", example="/api/v1/comptes?page=1&limit=10"),
-     *                 @OA\Property(property="next", type="string", example="/api/v1/comptes?page=2&limit=10"),
-     *                 @OA\Property(property="first", type="string", example="/api/v1/comptes?page=1&limit=10"),
-     *                 @OA\Property(property="last", type="string", example="/api/v1/comptes?page=3&limit=10")
+     *                 @OA\Property(property="self", type="string", example="/senghorfallou/v1/comptes?page=1&limit=10"),
+     *                 @OA\Property(property="next", type="string", example="/senghorfallou/v1/comptes?page=2&limit=10"),
+     *                 @OA\Property(property="first", type="string", example="/senghorfallou/v1/comptes?page=1&limit=10"),
+     *                 @OA\Property(property="last", type="string", example="/senghorfallou/v1/comptes?page=3&limit=10")
      *             )
      *         )
      *     ),
@@ -151,13 +160,13 @@ class CompteController extends Controller
      *     )
      * )
      */
-    public function index(Request $request)
+    public function index(ListComptesRequest $request)
     {
         try {
             $user = $request->user();
 
             // Allow access without authentication for now, using admin_id parameter if provided
-            $adminId = $request->query('admin_id');
+            $adminId = $request->validated()['admin_id'] ?? null;
             if (!$user && !$adminId) {
                 return $this->errorResponse("Authentification requise ou paramètre admin_id", 401);
             }
@@ -232,7 +241,7 @@ class CompteController extends Controller
 
     /**
      * @OA\Get(
-     *     path="/api/v1/comptes/{id}",
+     *     path="/senghorfallou/v1/comptes/{id}",
      *     tags={"Comptes"},
      *     summary="Obtenir les détails d'un compte spécifique",
      *     description="Retourne les détails d'un compte bancaire spécifique avec son utilisateur",
@@ -284,16 +293,16 @@ class CompteController extends Controller
      *     )
      * )
      */
-    public function show(Request $request, $id = null)
+    public function show(ShowCompteRequest $request, $id = null)
     {
-        $id = $id ?? $request->route('id') ?? $request->query('id');
+        $id = $id ?? $request->route('id') ?? $request->validated()['id'];
         $compte = $this->compteRepository->getCompteById($id);
         return $this->successResponse(new CompteResource($compte), 'Détails du compte');
     }
 
     /**
      * @OA\Get(
-     *     path="/api/v1/comptes/mine",
+     *     path="/senghorfallou/v1/comptes/mine",
      *     tags={"Comptes"},
      *     summary="Obtenir les comptes du client connecté",
      *     description="Retourne la liste des comptes actifs du client authentifié ou via user_id en paramètre",
@@ -346,11 +355,11 @@ class CompteController extends Controller
      *     )
      * )
      */
-    public function mine(Request $request)
+    public function mine(MineComptesRequest $request)
     {
         // When unauthenticated, allow passing `user_id` as a query parameter for testing.
         $user = $request->user();
-        $userId = $user?->id ?? $request->query('user_id');
+        $userId = $user?->id ?? $request->validated()['user_id'] ?? null;
 
         if (!$userId) {
             return $this->errorResponse("Paramètre 'user_id' requis lorsque non authentifié", 400);
@@ -358,5 +367,159 @@ class CompteController extends Controller
 
         $comptes = $this->compteRepository->getActiveComptesByUserId($userId);
         return $this->successResponse(CompteResource::collection($comptes), 'Comptes de l\'utilisateur');
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/senghorfallou/v1/comptes",
+     *     tags={"Comptes"},
+     *     summary="Créer un nouveau compte bancaire",
+     *     description="Crée un nouveau compte bancaire pour un client existant ou nouveau",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"type", "solde", "client"},
+     *             @OA\Property(property="type", type="string", enum={"epargne", "cheque"}, example="epargne"),
+     *             @OA\Property(property="solde", type="number", format="float", minimum=10000, example=50000),
+     *             @OA\Property(property="devise", type="string", default="FCFA", example="FCFA"),
+     *             @OA\Property(property="client", type="object",
+     *                 required={"titulaire", "email", "telephone", "adresse"},
+     *                 @OA\Property(property="id", type="integer", nullable=true, example=null),
+     *                 @OA\Property(property="titulaire", type="string", example="Amadou Diallo"),
+     *                 @OA\Property(property="nci", type="string", nullable=true, example="1234567890123"),
+     *                 @OA\Property(property="email", type="string", format="email", example="amadou.diallo@email.com"),
+     *                 @OA\Property(property="telephone", type="string", example="771234567"),
+     *                 @OA\Property(property="adresse", type="string", example="Dakar, Sénégal")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Compte créé avec succès",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="id", type="string", format="uuid", example="550e8400-e29b-41d4-a716-446655440000"),
+     *                 @OA\Property(property="numero", type="string", example="CPT123456"),
+     *                 @OA\Property(property="titulaire", type="string", example="Amadou Diallo"),
+     *                 @OA\Property(property="type", type="string", enum={"cheque", "epargne"}, example="cheque"),
+     *                 @OA\Property(property="solde", type="number", format="float", example=50000),
+     *                 @OA\Property(property="devise", type="string", example="FCFA"),
+     *                 @OA\Property(property="statut", type="string", example="Actif"),
+     *                 @OA\Property(property="dateCreation", type="string", format="date-time", example="2023-10-26T10:00:00Z"),
+     *                 @OA\Property(property="client", type="object",
+     *                     @OA\Property(property="id", type="integer", example=1),
+     *                     @OA\Property(property="nom", type="string", example="Diallo"),
+     *                     @OA\Property(property="prenom", type="string", example="Amadou"),
+     *                     @OA\Property(property="email", type="string", example="amadou.diallo@email.com"),
+     *                     @OA\Property(property="telephone", type="string", example="771234567")
+     *                 )
+     *             ),
+     *             @OA\Property(property="message", type="string", example="Compte créé avec succès")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Données invalides",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Les données fournies sont invalides"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Erreur de validation",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Erreur de validation"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     )
+     * )
+     */
+    public function store(StoreCompteRequest $request)
+    {
+        try {
+            $validated = $request->validated();
+
+            // Find existing client by id, email or telephone (in that order)
+            $client = null;
+            $clientInput = $validated['client'] ?? [];
+
+            if (!empty($clientInput['id'])) {
+                $client = User::find($clientInput['id']);
+            }
+
+            if (!$client && !empty($clientInput['email'])) {
+                $client = User::where('email', $clientInput['email'])->first();
+            }
+
+            if (!$client && !empty($clientInput['telephone'])) {
+                $client = User::where('telephone', $clientInput['telephone'])->first();
+            }
+
+            if (!$client) {
+                // Create new client and send credentials + verification code
+                $password = Str::random(8);
+                // Use a 6-digit numeric code for SMS verification
+                $code = str_pad((string) mt_rand(0, 999999), 6, '0', STR_PAD_LEFT);
+
+                // Parse titulaire into prenom / nom more robustly
+                $titulaire = $clientInput['titulaire'] ?? '';
+                $parts = preg_split('/\s+/', trim($titulaire));
+                $prenom = $parts[0] ?? '';
+                $nom = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : ($parts[0] ?? '');
+
+                $client = User::create([
+                    'nom' => $nom,
+                    'prenom' => $prenom,
+                    'email' => $clientInput['email'] ?? null,
+                    'telephone' => $clientInput['telephone'] ?? null,
+                    'adresse' => $clientInput['adresse'] ?? null,
+                    'nci' => $clientInput['nci'] ?? null,
+                    'code' => $code,
+                    'password' => Hash::make($password),
+                    // DB constraint expects 'Client' (capitalized) as defined in migrations
+                    'role' => 'Client',
+                ]);
+
+                // Fire event for notifications (email + SMS)
+                event(new ClientCreated($client, $password, $code));
+            }
+
+            // Create account — only include 'devise' if the DB column exists (migrations may be out of sync)
+            $compteData = [
+                'type' => $validated['type'] === 'cheque' ? 'Chèque' : 'Épargne',
+                'solde' => $validated['solde'],
+                'statut' => 'Actif',
+                'date_creation' => now(),
+                'utilisateur_id' => $client->id,
+            ];
+
+            if (Schema::hasColumn('comptes', 'devise')) {
+                $compteData['devise'] = $validated['devise'] ?? 'FCFA';
+            }
+
+            $compte = Compte::create($compteData);
+
+            // Load the client relationship
+            $compte->load('utilisateur');
+
+            return $this->successResponse(
+                new CompteResource($compte),
+                'Compte créé avec succès',
+                201
+            );
+
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors de la création du compte: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return $this->errorResponse("Erreur lors de la création du compte", 500);
+        }
     }
 }

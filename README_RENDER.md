@@ -27,7 +27,7 @@ Or call the helper script included in this repo:
 
 ```
 curl -I https://fallou.senghor.bank.com/docs?api-docs.json
-curl -I https://fallou.senghor.bank.com/api/v1/comptes?page=1&limit=1
+curl -I https://fallou.senghor.bank.com/senghorfallou/v1/comptes?page=1&limit=1
 ```
 
 5) Notes

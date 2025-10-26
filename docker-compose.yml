@@ -64,6 +64,19 @@ services:
     networks:
       - laravel
 
+  # 📧 Mailpit (Email Testing)
+  mailpit:
+    image: axllent/mailpit
+    container_name: mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"    # SMTP port
+      - "8025:8025"    # Web interface
+    environment:
+      MP_SMTP_AUTH: "none"
+    networks:
+      - laravel
+
 networks:
   laravel:
 

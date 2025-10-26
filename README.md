@@ -58,6 +58,26 @@ Thank you for considering contributing to the Laravel framework! The contributio
 
 In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
 
+## SMS provider (Twilio) setup
+
+To enable sending verification SMS to clients, you can configure Twilio. Add the following to your `.env`:
+
+```
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=your_auth_token_here
+TWILIO_FROM=+221771234567
+# Optionally, use a Messaging Service SID instead of a number:
+# TWILIO_MESSAGING_SERVICE_SID=MGxxxxxxxxxxxxxxxxxxxx
+```
+
+Install the Twilio SDK locally (not committed here):
+
+```bash
+composer require twilio/sdk
+```
+
+The code will fallback to logging the verification code if Twilio isn't configured or the SDK isn't installed (useful for development).
+
 ## Security Vulnerabilities
 
 If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
