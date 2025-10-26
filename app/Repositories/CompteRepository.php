@@ -77,8 +77,8 @@ class CompteRepository implements CompteRepositoryInterface
 
     public function getActiveComptes()
     {
-        return Compte::whereIn('type', ['Épargne', 'Chèque'])
-            ->where('statut', 'Actif')
+        return Compte::whereIn('type', ['epargne', 'cheque'])
+            ->where('statut', 'actif')
             ->get();
     }
 

@@ -173,9 +173,9 @@ class CompteController extends Controller
 
             $query = Compte::with('utilisateur');
 
-            // Default filters: type Épargne or Chèque, statut Actif
-            $query->whereIn('type', ['Épargne', 'Chèque'])
-                  ->where('statut', 'Actif');
+            // Default filters: type epargne or cheque, statut actif
+            $query->whereIn('type', ['epargne', 'cheque'])
+                  ->where('statut', 'actif');
 
             // For Client, only their own comptes
             if ($user && $user->role !== 'admin') {
@@ -184,13 +184,11 @@ class CompteController extends Controller
 
             // Filtres supplémentaires
             if ($request->has('type') && in_array($request->type, ['epargne', 'cheque'])) {
-                $type = $request->type === 'epargne' ? 'Épargne' : 'Chèque';
-                $query->where('type', $type);
+                $query->where('type', $request->type);
             }
 
             if ($request->has('statut') && in_array($request->statut, ['actif', 'bloque', 'ferme'])) {
-                $statut = ucfirst($request->statut);
-                $query->where('statut', $statut);
+                $query->where('statut', $request->statut);
             }
 
             if ($request->has('search')) {
@@ -226,16 +224,29 @@ class CompteController extends Controller
 
             // Pagination
             $limit = min($request->get('limit', 10), 100);
-            $comptes = $query->paginate($limit);
+
+            try {
+                $comptes = $query->paginate($limit);
+            } catch (\Exception $e) {
+                \Log::error('Erreur lors de la pagination des comptes: ' . $e->getMessage(), [
+                    'trace' => $e->getTraceAsString(),
+                    'query' => $query->toSql(),
+                    'bindings' => $query->getBindings(),
+                    'limit' => $limit
+                ]);
+                throw $e;
+            }
 
             return $this->paginatedResponse($comptes, 'Comptes récupérés');
         } catch (\Exception $e) {
             \Log::error('Erreur lors de la récupération des comptes: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
-                'request' => $request->all()
+                'request' => $request->all(),
+                'admin_id' => $adminId ?? 'non défini',
+                'user' => $user ? ['id' => $user->id, 'role' => $user->role] : 'non authentifié'
             ]);
 
-            return $this->errorResponse("Erreur interne du serveur", 500);
+            return $this->errorResponse("Erreur interne du serveur - " . $e->getMessage(), 500);
         }
     }
 
@@ -506,9 +517,9 @@ class CompteController extends Controller
 
             // Create account — only include 'devise' if the DB column exists (migrations may be out of sync)
             $compteData = [
-                'type' => $validated['type'] === 'cheque' ? 'Chèque' : 'Épargne',
+                'type' => $validated['type'],
                 'solde' => $validated['solde'],
-                'statut' => 'Actif',
+                'statut' => 'actif',
                 'date_creation' => now(),
                 'utilisateur_id' => $client->id,
             ];
