@@ -32,8 +32,9 @@ class UnarchiveComptesJob implements ShouldQueue
         Log::info('Starting UnarchiveComptesJob');
 
         try {
-            // Find comptes where date_fin_blocage has expired and they are archived (soft deleted)
-            $comptesToUnarchive = Compte::onlyTrashed()
+            // Find comptes in archive database where date_fin_blocage has expired
+            $comptesToUnarchive = DB::connection('archive')
+                ->table('comptes')
                 ->where('statut', 'bloque')
                 ->whereNotNull('date_fin_blocage')
                 ->where('date_fin_blocage', '<=', now())
@@ -41,25 +42,36 @@ class UnarchiveComptesJob implements ShouldQueue
 
             $unarchivedCount = 0;
 
-            foreach ($comptesToUnarchive as $compte) {
-                DB::transaction(function () use ($compte, &$unarchivedCount) {
-                    // Restore the compte (unarchive it)
-                    $compte->restore();
+            foreach ($comptesToUnarchive as $compteData) {
+                DB::transaction(function () use ($compteData, &$unarchivedCount) {
+                    // Get transactions from archive
+                    $transactions = DB::connection('archive')
+                        ->table('transactions')
+                        ->where('compte_id', $compteData->id)
+                        ->get();
 
-                    // Also restore all related transactions
-                    Transaction::onlyTrashed()
-                        ->where('compte_id', $compte->id)
-                        ->restore();
+                    // Move compte back to main database
+                    $compteData->statut = 'actif';
+                    $compteData->date_debut_blocage = null;
+                    $compteData->date_fin_blocage = null;
+                    unset($compteData->deleted_at); // Remove soft delete timestamp if present
 
-                    // Reset blocking dates and status
-                    $compte->update([
-                        'statut' => 'actif',
-                        'date_debut_blocage' => null,
-                        'date_fin_blocage' => null,
-                    ]);
+                    DB::table('comptes')->insert((array) $compteData);
+
+                    // Move transactions back to main database
+                    if ($transactions->isNotEmpty()) {
+                        foreach ($transactions as $transaction) {
+                            unset($transaction->deleted_at); // Remove soft delete timestamp if present
+                            DB::table('transactions')->insert((array) $transaction);
+                        }
+                    }
+
+                    // Remove from archive database
+                    DB::connection('archive')->table('comptes')->where('id', $compteData->id)->delete();
+                    DB::connection('archive')->table('transactions')->where('compte_id', $compteData->id)->delete();
 
                     $unarchivedCount++;
-                    Log::info("Unarchived compte {$compte->numero} and its transactions");
+                    Log::info("Unarchived compte {$compteData->numero} and its transactions");
                 });
             }
 

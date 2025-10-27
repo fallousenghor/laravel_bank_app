@@ -36,17 +36,25 @@ class ArchiveComptesJob implements ShouldQueue
             $comptesToArchive = Compte::where('statut', 'bloque')
                 ->whereNotNull('date_debut_blocage')
                 ->where('date_debut_blocage', '<=', now())
-                ->whereNull('deleted_at') // Not already soft deleted
                 ->get();
 
             $archivedCount = 0;
 
             foreach ($comptesToArchive as $compte) {
                 DB::transaction(function () use ($compte, &$archivedCount) {
-                    // Soft delete the compte (archive it)
-                    $compte->delete();
+                    // Get all related transactions
+                    $transactions = Transaction::where('compte_id', $compte->id)->get();
 
-                    // Also archive all related transactions
+                    // Move compte to archive database
+                    DB::connection('archive')->table('comptes')->insert($compte->toArray());
+
+                    // Move transactions to archive database
+                    if ($transactions->isNotEmpty()) {
+                        DB::connection('archive')->table('transactions')->insert($transactions->toArray());
+                    }
+
+                    // Delete from main database
+                    $compte->delete();
                     Transaction::where('compte_id', $compte->id)->delete();
 
                     $archivedCount++;
