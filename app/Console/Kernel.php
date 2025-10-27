@@ -13,6 +13,12 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         // $schedule->command('inspire')->hourly();
+
+        // Schedule archiving job to run daily at midnight
+        $schedule->job(new \App\Jobs\ArchiveComptesJob)->daily();
+
+        // Schedule unarchiving job to run daily at midnight
+        $schedule->job(new \App\Jobs\UnarchiveComptesJob)->daily();
     }
 
     /**

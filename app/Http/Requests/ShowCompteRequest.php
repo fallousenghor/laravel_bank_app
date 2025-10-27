@@ -21,6 +21,9 @@ class ShowCompteRequest extends FormRequest
      */
     public function rules(): array
     {
+        // L'ID est passé dans l'URL, donc on le récupère des paramètres de route
+        $this->merge(['id' => $this->route('id')]);
+
         return [
             'id' => 'required|string|uuid|exists:comptes,id',
         ];

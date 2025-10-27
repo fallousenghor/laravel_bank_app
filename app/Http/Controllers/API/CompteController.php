@@ -7,6 +7,7 @@ use App\Http\Requests\ListComptesRequest;
 use App\Http\Requests\ShowCompteRequest;
 use App\Http\Requests\MineComptesRequest;
 use App\Http\Requests\StoreCompteRequest;
+use App\Http\Requests\BloquerCompteRequest;
 use App\Http\Resources\CompteResource;
 use App\Models\Compte;
 use App\Models\User;
@@ -367,9 +368,9 @@ class CompteController extends Controller
      *     )
      * )
      */
-    public function show(ShowCompteRequest $request, $id = null)
+    public function show(ShowCompteRequest $request, $id)
     {
-        $id = $id ?? $request->route('id') ?? $request->validated()['id'];
+        // L'ID est déjà validé par ShowCompteRequest
         $compte = $this->compteRepository->getCompteById($id);
         return $this->successResponse(new CompteResource($compte), 'Détails du compte');
     }
@@ -609,6 +610,111 @@ class CompteController extends Controller
             ]);
 
             return $this->errorResponse("Erreur lors de la création du compte", 500);
+        }
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/senghorfallou/v1/comptes/{compteId}/bloquer",
+     *     tags={"Comptes"},
+     *     summary="Bloquer un compte bancaire",
+     *     description="Bloque un compte bancaire avec des dates de début et fin de blocage",
+
+     *     @OA\Parameter(
+     *         name="admin_id",
+     *         in="query",
+     *         description="ID de l'admin (pour accès temporaire sans authentification)",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="compteId",
+     *         in="path",
+     *         description="ID du compte à bloquer",
+     *         required=true,
+     *         @OA\Schema(type="string", format="uuid")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"date_debut_blocage", "date_fin_blocage"},
+     *             @OA\Property(property="date_debut_blocage", type="string", format="date-time", example="2023-12-01T00:00:00Z"),
+     *             @OA\Property(property="date_fin_blocage", type="string", format="date-time", example="2023-12-31T23:59:59Z")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Compte bloqué avec succès",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="id", type="string", format="uuid", example="550e8400-e29b-41d4-a716-446655440000"),
+     *                 @OA\Property(property="numero", type="string", example="CPT123456"),
+     *                 @OA\Property(property="statut", type="string", example="bloque"),
+     *                 @OA\Property(property="date_debut_blocage", type="string", format="date-time", example="2023-12-01T00:00:00Z"),
+     *                 @OA\Property(property="date_fin_blocage", type="string", format="date-time", example="2023-12-31T23:59:59Z")
+     *             ),
+     *             @OA\Property(property="message", type="string", example="Compte bloqué avec succès")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Accès non autorisé - Admin ou propriétaire requis",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Seul un administrateur ou le propriétaire du compte peut bloquer un compte")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Compte non trouvé",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Compte non trouvé")
+     *         )
+     *     )
+     * )
+     */
+    public function bloquer(BloquerCompteRequest $request, $compteId)
+    {
+        try {
+            // Vérifier si l'ID admin est fourni
+            $adminId = $request->query('admin_id');
+            if (!$adminId) {
+                return $this->errorResponse("ID administrateur requis", 401);
+            }
+
+            // Vérifier si l'utilisateur est un admin
+            $admin = User::find($adminId);
+            if (!$admin || $admin->role !== 'admin') {
+                return $this->errorResponse("Seul un administrateur peut bloquer un compte", 403);
+            }
+
+            $compte = Compte::find($compteId);
+            if (!$compte) {
+                return $this->errorResponse("Compte non trouvé", 404);
+            }
+
+            // Update compte with blocking dates and status
+            $compte->update([
+                'statut' => 'bloque',
+                'date_debut_blocage' => $request->date_debut_blocage,
+                'date_fin_blocage' => $request->date_fin_blocage,
+            ]);
+
+            return $this->successResponse(
+                new CompteResource($compte),
+                'Compte bloqué avec succès'
+            );
+
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors du blocage du compte: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'compte_id' => $compteId,
+                'request' => $request->all()
+            ]);
+
+            return $this->errorResponse("Erreur lors du blocage du compte", 500);
         }
     }
 }

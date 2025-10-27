@@ -20,11 +20,11 @@ Route::prefix('v1')->group(function () {
 
 
     Route::middleware(['throttle:api', 'rating'])->group(function () {
-
-    Route::get('comptes', [CompteController::class, 'index']);
-    Route::post('comptes', [CompteController::class, 'store']);
-    Route::get('comptes/mine', [CompteController::class, 'mine']);
+        Route::get('comptes', [CompteController::class, 'index']);
+        Route::post('comptes', [CompteController::class, 'store']);
+        Route::get('comptes/mine', [CompteController::class, 'mine']);
         Route::get('comptes/{id}', [CompteController::class, 'show']);
+        Route::post('comptes/{compteId}/bloquer', [CompteController::class, 'bloquer']);
     });
 
 

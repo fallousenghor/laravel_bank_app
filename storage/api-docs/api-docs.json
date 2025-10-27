@@ -831,6 +831,149 @@
                     }
                 ]
             }
+        },
+        "/senghorfallou/v1/comptes/{compteId}/bloquer": {
+            "post": {
+                "tags": [
+                    "Comptes"
+                ],
+                "summary": "Bloquer un compte bancaire",
+                "description": "Bloque un compte bancaire avec des dates de début et fin de blocage",
+                "operationId": "464db1395c694e2a59862fc7a8c25540",
+                "parameters": [
+                    {
+                        "name": "compteId",
+                        "in": "path",
+                        "description": "ID du compte à bloquer",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "date_debut_blocage",
+                                    "date_fin_blocage"
+                                ],
+                                "properties": {
+                                    "date_debut_blocage": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2023-12-01T00:00:00Z"
+                                    },
+                                    "date_fin_blocage": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2023-12-31T23:59:59Z"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Compte bloqué avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid",
+                                                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                                                },
+                                                "numero": {
+                                                    "type": "string",
+                                                    "example": "CPT123456"
+                                                },
+                                                "statut": {
+                                                    "type": "string",
+                                                    "example": "bloque"
+                                                },
+                                                "date_debut_blocage": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2023-12-01T00:00:00Z"
+                                                },
+                                                "date_fin_blocage": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2023-12-31T23:59:59Z"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Compte bloqué avec succès"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Accès non autorisé - Admin requis",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Seul un administrateur peut bloquer un compte"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Compte non trouvé",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Compte non trouvé"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {

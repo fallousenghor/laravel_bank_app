@@ -20,7 +20,9 @@ class Compte extends Model
         'statut',
         'date_creation',
         'utilisateur_id',
-        'devise'
+        'devise',
+        'date_debut_blocage',
+        'date_fin_blocage'
     ];
 
     /**
