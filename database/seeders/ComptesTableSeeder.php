@@ -16,7 +16,7 @@ class ComptesTableSeeder extends Seeder
         // For each existing user, create 2 comptes
         User::all()->each(function ($user) {
             Compte::factory(2)->create([
-                'utilisateur_id' => $user->id,
+                'client_id' => $user->id,
             ]);
         });
     }

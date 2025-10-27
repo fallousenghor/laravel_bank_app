@@ -7,6 +7,7 @@ use App\Http\Requests\ListComptesRequest;
 use App\Http\Requests\ShowCompteRequest;
 use App\Http\Requests\MineComptesRequest;
 use App\Http\Requests\StoreCompteRequest;
+use App\Http\Requests\UpdateCompteRequest;
 use App\Http\Requests\BloquerCompteRequest;
 use App\Http\Resources\CompteResource;
 use App\Models\Compte;
@@ -171,13 +172,18 @@ class CompteController extends Controller
                 return $this->errorResponse("Authentification requise ou paramètre admin_id", 401);
             }
 
-            $query = Compte::with('utilisateur')
-                         ->whereIn('type', ['epargne', 'cheque'])
-                         ->where('statut', 'actif');
+            $query = Compte::with('utilisateur');
+
+            // Construction sécurisée de la requête avec des paramètres liés
+            $query->where(function($q) {
+                $q->where('type', '=', 'epargne')
+                  ->orWhere('type', '=', 'cheque');
+            })
+            ->where('statut', '=', 'actif');
 
             // For Client, only their own comptes
             if ($user && $user->role !== 'admin') {
-                $query->where('utilisateur_id', $user->id);
+                $query->where('client_id', $user->id);
             }
 
             // Filtres supplémentaires
@@ -609,6 +615,158 @@ class CompteController extends Controller
             ]);
 
             return $this->errorResponse("Erreur lors de la création du compte", 500);
+        }
+    }
+
+    /**
+     * @OA\Patch(
+     *     path="/senghorfallou/v1/comptes/{compteId}",
+     *     tags={"Comptes"},
+     *     summary="Mettre à jour les informations du client",
+     *     description="Modifie les informations du client associé à un compte bancaire. Tous les champs sont optionnels mais au moins un champ doit être fourni.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="compteId",
+     *         in="path",
+     *         description="ID du compte",
+     *         required=true,
+     *         @OA\Schema(type="string", format="uuid")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="titulaire", type="string", example="Amadou Diallo Junior"),
+     *             @OA\Property(property="informationsClient", type="object",
+     *                 @OA\Property(property="telephone", type="string", example="+221771234568"),
+     *                 @OA\Property(property="email", type="string", format="email", example="amadou.diallo@example.com"),
+     *                 @OA\Property(property="password", type="string", example="newpassword123"),
+     *                 @OA\Property(property="nci", type="string", example="1234567890123")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Informations du client mises à jour avec succès",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Compte mis à jour avec succès"),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="id", type="string", format="uuid", example="550e8400-e29b-41d4-a716-446655440000"),
+     *                 @OA\Property(property="numeroCompte", type="string", example="C00123456"),
+     *                 @OA\Property(property="titulaire", type="string", example="Amadou Diallo Junior"),
+     *                 @OA\Property(property="type", type="string", enum={"epargne", "cheque"}, example="epargne"),
+     *                 @OA\Property(property="solde", type="number", format="float", example=1250000),
+     *                 @OA\Property(property="devise", type="string", example="FCFA"),
+     *                 @OA\Property(property="dateCreation", type="string", format="date-time", example="2023-03-15T00:00:00Z"),
+     *                 @OA\Property(property="statut", type="string", enum={"actif", "bloque", "ferme"}, example="bloque"),
+     *                 @OA\Property(property="metadata", type="object",
+     *                     @OA\Property(property="derniereModification", type="string", format="date-time", example="2025-10-19T11:00:00Z"),
+     *                     @OA\Property(property="version", type="integer", example=1)
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Données invalides ou aucun champ fourni",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Au moins un champ de modification doit être fourni.")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Compte non trouvé",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Compte non trouvé")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Erreur de validation",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Erreur de validation"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     )
+     * )
+     */
+    public function update(UpdateCompteRequest $request, $compteId)
+    {
+        try {
+            $validated = $request->validated();
+
+            // Find the compte
+            $compte = Compte::find($compteId);
+            if (!$compte) {
+                return $this->errorResponse("Compte non trouvé", 404);
+            }
+
+            // Get the associated user
+            $user = $compte->utilisateur;
+            if (!$user) {
+                return $this->errorResponse("Utilisateur associé non trouvé", 404);
+            }
+
+            \DB::beginTransaction();
+
+            // Update titulaire if provided
+            if (isset($validated['titulaire'])) {
+                // Parse titulaire into prenom / nom
+                $titulaire = $validated['titulaire'];
+                $parts = preg_split('/\s+/', trim($titulaire));
+                $prenom = $parts[0] ?? '';
+                $nom = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : ($parts[0] ?? '');
+
+                $user->prenom = $prenom;
+                $user->nom = $nom;
+            }
+
+            // Update client information if provided
+            if (isset($validated['informationsClient'])) {
+                $clientInfo = $validated['informationsClient'];
+
+                if (isset($clientInfo['telephone'])) {
+                    $user->telephone = $clientInfo['telephone'];
+                }
+
+                if (isset($clientInfo['email'])) {
+                    $user->email = $clientInfo['email'];
+                }
+
+                if (isset($clientInfo['password'])) {
+                    $user->password = Hash::make($clientInfo['password']);
+                }
+
+                if (isset($clientInfo['nci'])) {
+                    $user->nci = $clientInfo['nci'];
+                }
+            }
+
+            // Save user changes
+            $user->save();
+
+            \DB::commit();
+
+            // Load the updated relationship
+            $compte->load('utilisateur');
+
+            return $this->successResponse(
+                new CompteResource($compte),
+                'Compte mis à jour avec succès'
+            );
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('Erreur lors de la mise à jour du compte: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'compte_id' => $compteId,
+                'request' => $request->all()
+            ]);
+
+            return $this->errorResponse("Erreur lors de la mise à jour du compte", 500);
         }
     }
 

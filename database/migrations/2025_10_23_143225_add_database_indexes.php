@@ -20,7 +20,7 @@ return new class extends Migration
 
         // Index sur la table comptes
         Schema::table('comptes', function (Blueprint $table) {
-            $table->index('utilisateur_id'); // Pour accélérer les jointures avec la table users
+            $table->index('client_id'); // Pour accélérer les jointures avec la table users
             $table->index('numero'); // Pour accélérer les recherches par numéro de compte
             $table->index('solde'); // Pour les tris et recherches par solde
             $table->index('type'); // Pour les filtres par type de compte

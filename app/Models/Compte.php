@@ -19,7 +19,7 @@ class Compte extends Model
         'solde',
         'statut',
         'date_creation',
-        'utilisateur_id',
+        'client_id',
         'devise',
         'date_debut_blocage',
         'date_fin_blocage'
@@ -69,9 +69,17 @@ class Compte extends Model
         }
     }
 
+    public function client()
+    {
+        return $this->belongsTo(User::class, 'client_id')->select('id', 'prenom', 'nom');
+    }
+
+    /**
+     * Alias pour la relation client (pour la rétrocompatibilité)
+     */
     public function utilisateur()
     {
-        return $this->belongsTo(User::class, 'utilisateur_id')->select('id', 'prenom', 'nom');
+        return $this->client();
     }
 
     /**

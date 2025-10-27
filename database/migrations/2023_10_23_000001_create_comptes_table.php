@@ -17,7 +17,7 @@ return new class extends Migration
             $table->enum('statut', ['actif', 'bloque', 'ferme']);
             $table->string('devise', 10)->default('FCFA');
             $table->date('date_creation');
-            $table->foreignId('utilisateur_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('client_id')->constrained('users')->onDelete('cascade');
             $table->timestamps();
             $table->softDeletes();
         });

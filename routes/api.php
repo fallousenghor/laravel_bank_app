@@ -24,10 +24,12 @@ Route::prefix('v1')->group(function () {
         Route::post('comptes', [CompteController::class, 'store']);
         Route::get('comptes/mine', [CompteController::class, 'mine']);
         Route::get('comptes/{id}', [CompteController::class, 'show']);
+        Route::patch('comptes/{compteId}', [CompteController::class, 'update']);
         Route::post('comptes/{compteId}/bloquer', [CompteController::class, 'bloquer']);
-    });
+
 
 
     Route::get('/transactions', [TransactionController::class, 'index']);
     Route::get('/transactions/{id}', [TransactionController::class, 'show']);
+});
 });

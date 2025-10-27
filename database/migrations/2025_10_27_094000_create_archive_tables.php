@@ -38,6 +38,13 @@ return new class extends Migration
             $table->uuid('compte_id');
             $table->timestamps();
         });
+
+        // Create migrations table for archive database
+        Schema::connection('archive')->create('migrations', function (Blueprint $table) {
+            $table->id();
+            $table->string('migration');
+            $table->integer('batch');
+        });
     }
 
     /**
@@ -45,6 +52,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::connection('archive')->dropIfExists('migrations');
         Schema::connection('archive')->dropIfExists('transactions');
         Schema::connection('archive')->dropIfExists('comptes');
     }
