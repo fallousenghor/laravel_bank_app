@@ -24,6 +24,8 @@ class CompteResource extends JsonResource
             'dateCreation' => $this->date_creation ? \Carbon\Carbon::parse($this->date_creation)->toISOString() : null,
             'statut' => $this->statut,
             'motifBlocage' => $this->statut === 'bloque' ? 'Inactivité de 30+ jours' : null,
+            'date_debut_blocage' => $this->date_debut_blocage ? \Carbon\Carbon::parse($this->date_debut_blocage)->toISOString() : null,
+            'date_fin_blocage' => $this->date_fin_blocage ? \Carbon\Carbon::parse($this->date_fin_blocage)->toISOString() : null,
             'metadata' => [
                 'derniereModification' => $this->updated_at?->toISOString(),
                 'version' => 1

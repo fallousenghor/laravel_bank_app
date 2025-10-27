@@ -12,7 +12,6 @@ use App\Http\Resources\CompteResource;
 use App\Models\Compte;
 use App\Models\User;
 use App\Events\ClientCreated;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schema;
@@ -145,10 +144,10 @@ class CompteController extends Controller
      *     ),
      *     @OA\Response(
      *         response=401,
-     *         description="Non authentifié",
+     *         description="Non authentifié ou ID administrateur requis",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
-     *             @OA\Property(property="message", type="string", example="Non authentifié")
+     *             @OA\Property(property="message", type="string", example="Authentification requise ou paramètre admin_id")
      *         )
      *     ),
      *     @OA\Response(
@@ -352,10 +351,10 @@ class CompteController extends Controller
      *     ),
      *     @OA\Response(
      *         response=401,
-     *         description="Non authentifié",
+     *         description="ID administrateur requis",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
-     *             @OA\Property(property="message", type="string", example="Non authentifié")
+     *             @OA\Property(property="message", type="string", example="ID administrateur requis")
      *         )
      *     ),
      *     @OA\Response(
@@ -619,12 +618,12 @@ class CompteController extends Controller
      *     tags={"Comptes"},
      *     summary="Bloquer un compte bancaire",
      *     description="Bloque un compte bancaire avec des dates de début et fin de blocage",
-
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="admin_id",
      *         in="query",
      *         description="ID de l'admin (pour accès temporaire sans authentification)",
-     *         required=true,
+     *         required=false,
      *         @OA\Schema(type="integer")
      *     ),
      *     @OA\Parameter(
@@ -659,10 +658,10 @@ class CompteController extends Controller
      *     ),
      *     @OA\Response(
      *         response=403,
-     *         description="Accès non autorisé - Admin ou propriétaire requis",
+     *         description="Accès non autorisé - Admin requis",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=false),
-     *             @OA\Property(property="message", type="string", example="Seul un administrateur ou le propriétaire du compte peut bloquer un compte")
+     *             @OA\Property(property="message", type="string", example="Seul un administrateur peut bloquer un compte")
      *         )
      *     ),
      *     @OA\Response(
@@ -678,15 +677,21 @@ class CompteController extends Controller
     public function bloquer(BloquerCompteRequest $request, $compteId)
     {
         try {
-            // Vérifier si l'ID admin est fourni
+            $user = $request->user();
             $adminId = $request->query('admin_id');
-            if (!$adminId) {
+
+            // Allow access if authenticated as admin or admin_id provided
+            if (!$user && !$adminId) {
                 return $this->errorResponse("ID administrateur requis", 401);
             }
 
-            // Vérifier si l'utilisateur est un admin
-            $admin = User::find($adminId);
-            if (!$admin || $admin->role !== 'admin') {
+            // Determine admin user
+            $admin = $user;
+            if (!$admin && $adminId) {
+                $admin = User::find($adminId);
+            }
+
+            if (!$admin || !in_array(strtolower($admin->role), ['admin', 'administrateur', 'Admin'])) {
                 return $this->errorResponse("Seul un administrateur peut bloquer un compte", 403);
             }
 
@@ -696,11 +701,17 @@ class CompteController extends Controller
             }
 
             // Update compte with blocking dates and status
-            $compte->update([
-                'statut' => 'bloque',
-                'date_debut_blocage' => $request->date_debut_blocage,
-                'date_fin_blocage' => $request->date_fin_blocage,
-            ]);
+            $updateData = ['statut' => 'bloque'];
+
+            if (Schema::hasColumn('comptes', 'date_debut_blocage')) {
+                $updateData['date_debut_blocage'] = $request->date_debut_blocage;
+            }
+
+            if (Schema::hasColumn('comptes', 'date_fin_blocage')) {
+                $updateData['date_fin_blocage'] = $request->date_fin_blocage;
+            }
+
+            $compte->update($updateData);
 
             return $this->successResponse(
                 new CompteResource($compte),

@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('numero', 20)->unique();
             $table->enum('type', ['epargne', 'cheque']);
             $table->decimal('solde', 10, 2);
-            $table->enum('statut', ['actif', 'bloque']);
+            $table->enum('statut', ['actif', 'bloque', 'ferme']);
             $table->string('devise', 10)->default('FCFA');
             $table->date('date_creation');
             $table->foreignId('utilisateur_id')->constrained('users')->onDelete('cascade');
