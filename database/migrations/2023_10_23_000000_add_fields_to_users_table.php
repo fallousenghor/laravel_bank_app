@@ -10,11 +10,21 @@ return new class extends Migration
     public function up()
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('prenom', 50)->after('id');
-            $table->string('nom', 50)->after('prenom');
-            $table->string('telephone', 20)->nullable()->after('email');
-            $table->text('adresse')->nullable()->after('telephone');
-            $table->enum('role', ['Admin', 'Client'])->default('Client')->after('password');
+            if (!Schema::hasColumn('users', 'prenom')) {
+                $table->string('prenom', 50)->after('id');
+            }
+            if (!Schema::hasColumn('users', 'nom')) {
+                $table->string('nom', 50)->after('prenom');
+            }
+            if (!Schema::hasColumn('users', 'telephone')) {
+                $table->string('telephone', 20)->nullable()->after('email');
+            }
+            if (!Schema::hasColumn('users', 'adresse')) {
+                $table->text('adresse')->nullable()->after('telephone');
+            }
+            if (!Schema::hasColumn('users', 'role')) {
+                $table->enum('role', ['Admin', 'Client'])->default('Client')->after('password');
+            }
         });
     }
 

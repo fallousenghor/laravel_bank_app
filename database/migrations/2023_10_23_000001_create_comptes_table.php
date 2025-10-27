@@ -12,12 +12,14 @@ return new class extends Migration
         Schema::create('comptes', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('numero', 20)->unique();
-            $table->enum('type', ['Épargne', 'Chèque']);
+            $table->enum('type', ['epargne', 'cheque']);
             $table->decimal('solde', 10, 2);
-            $table->enum('statut', ['Actif', 'Bloqué']);
+            $table->enum('statut', ['actif', 'bloque']);
+            $table->string('devise', 10)->default('FCFA');
             $table->date('date_creation');
             $table->foreignId('utilisateur_id')->constrained('users')->onDelete('cascade');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

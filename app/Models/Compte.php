@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class Compte extends Model
@@ -61,15 +62,14 @@ class Compte extends Model
 
         // Override soft delete scope to not apply if column doesn't exist
         if (!Schema::hasColumn('comptes', 'deleted_at')) {
-            static::addGlobalScope('softDeleting', function ($builder) {
-                // Do nothing - no soft delete scope applied
-            });
+            // Remove the soft delete global scope
+            static::withoutGlobalScope('Illuminate\Database\Eloquent\SoftDeletingScope');
         }
     }
 
     public function utilisateur()
     {
-        return $this->belongsTo(User::class, 'utilisateur_id');
+        return $this->belongsTo(User::class, 'utilisateur_id')->select('id', 'prenom', 'nom');
     }
 
     /**
