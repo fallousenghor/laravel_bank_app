@@ -826,6 +826,12 @@ class CompteController extends Controller
                 return $this->errorResponse("Compte non trouvé", 404);
             }
 
+            // Règle métier : n'autoriser le blocage QUE pour les comptes de type 'epargne'
+            // Si le compte n'est pas de type 'epargne' (par ex. 'cheque'), refuser l'opération
+            if (!isset($compte->type) || strtolower($compte->type) !== 'epargne') {
+                return $this->errorResponse("Seul un compte d'épargne peut être bloqué via cette opération", 422);
+            }
+
             // Get the associated user
             $user = $compte->utilisateur;
             if (!$user) {
@@ -978,6 +984,12 @@ class CompteController extends Controller
             $compte = Compte::find($compteId);
             if (!$compte) {
                 return $this->errorResponse("Compte non trouvé", 404);
+            }
+
+            // Règle métier : n'autoriser le blocage QUE pour les comptes de type 'epargne'
+            // Si le compte n'est pas de type 'epargne' (par ex. 'cheque'), refuser l'opération
+            if (!isset($compte->type) || strtolower($compte->type) !== 'epargne') {
+                return $this->errorResponse("Seul un compte d'épargne peut être bloqué", 422);
             }
 
             // Update compte with blocking dates and status
