@@ -29,6 +29,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Enregistrer les observers
+        \App\Models\Compte::observe(\App\Observers\CompteObserver::class);
+
         // Force HTTPS scheme for generated absolute URLs when in production or when explicitly enabled
         // This helps avoid mixed content errors for assets generated with absolute URLs (e.g. l5-swagger)
         try {
