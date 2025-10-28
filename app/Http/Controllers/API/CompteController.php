@@ -95,15 +95,16 @@ class CompteController extends Controller
         $compte->statut = 'ferme';
         $compte->save();
 
-    // Dispatch the archive job to run asynchronously on the queue (won't block the request)
-    \App\Jobs\ArchiveComptesJob::dispatch($compte->id);
+    // NOTE: Archive job removed — we only mark the compte as closed here.
+    // Archiving/deletion background job was causing side-effects; to avoid impacting
+    // API actions we do not dispatch it anymore.
 
         return $this->successResponse([
             'id' => $compte->id,
             'numeroCompte' => $compte->numero,
             'statut' => $compte->statut,
             'dateFermeture' => now()
-        ], 'Compte archivé avec succès');
+        ], 'Compte fermé avec succès');
     }
 
     /**
