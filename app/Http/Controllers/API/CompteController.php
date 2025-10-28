@@ -10,17 +10,14 @@ use App\Http\Requests\StoreCompteRequest;
 use App\Http\Requests\UpdateCompteRequest;
 use App\Http\Requests\BloquerCompteRequest;
 use App\Http\Resources\CompteResource;
-use App\Http\Resources\API\SuccessResource;
-use App\Http\Resources\API\ErrorResource;
-use App\Http\Resources\API\PaginatedResource;
-use App\Messages\fr\ErrorMessages;
-use App\Messages\fr\SuccessMessages;
 use App\Models\Compte;
 use App\Models\User;
+use App\Events\ClientCreated;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schema;
 use OpenApi\Annotations as OA;
 use App\Interfaces\CompteRepositoryInterface;
-use App\Services\CompteService;
 use App\Traits\ApiResponse;
 
 /**
@@ -41,12 +38,10 @@ class CompteController extends Controller
 {
     use ApiResponse;
     private $compteRepository;
-    private $compteService;
 
-    public function __construct(CompteRepositoryInterface $compteRepository, CompteService $compteService)
+    public function __construct(CompteRepositoryInterface $compteRepository)
     {
         $this->compteRepository = $compteRepository;
-        $this->compteService = $compteService;
     }
 
     /**
@@ -90,23 +85,26 @@ class CompteController extends Controller
      */
     public function destroy($id)
     {
-        try {
-            $compte = $this->compteService->fermerCompte($id);
+        $compte = $this->compteRepository->getCompteById($id);
 
-            return new SuccessResource([
-                'id' => $compte->id,
-                'numeroCompte' => $compte->numero,
-                'statut' => $compte->statut,
-                'dateFermeture' => now()
-            ], SuccessMessages::COMPTE_FERME->value);
-        } catch (\Exception $e) {
-            \Log::error('Erreur lors de la fermeture du compte: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-                'compte_id' => $id
-            ]);
-
-            return new ErrorResource(ErrorMessages::ERREUR_FERMETURE_COMPTE->value, [], 500);
+        if (!$compte) {
+            return $this->errorResponse('Compte non trouvé', 404);
         }
+
+        // Mise à jour du statut à "ferme" avant la suppression
+        $compte->statut = 'ferme';
+        $compte->save();
+
+    // NOTE: Archive job removed — we only mark the compte as closed here.
+    // Archiving/deletion background job was causing side-effects; to avoid impacting
+    // API actions we do not dispatch it anymore.
+
+        return $this->successResponse([
+            'id' => $compte->id,
+            'numeroCompte' => $compte->numero,
+            'statut' => $compte->statut,
+            'dateFermeture' => now()
+        ], 'Compte fermé avec succès');
     }
 
     /**
@@ -245,22 +243,8 @@ class CompteController extends Controller
     public function index(ListComptesRequest $request)
     {
         try {
+            // Get validated data
             $validated = $request->validated();
-            $user = $request->user();
-            $adminId = $validated['admin_id'] ?? null;
-
-            // Validate authentication or admin access
-            if (!$user && !$adminId) {
-                return new ErrorResource(ErrorMessages::AUTHENTIFICATION_REQUISE->value, [], 401);
-            }
-
-            // If admin_id is provided, verify the user is an admin
-            if ($adminId) {
-                $admin = \App\Models\User::find($adminId);
-                if (!$admin || $admin->role !== 'admin') {
-                    return new ErrorResource(ErrorMessages::ACCES_NON_AUTORISE->value, [], 403);
-                }
-            }
 
             // Setup filters
             $filters = [
@@ -271,14 +255,179 @@ class CompteController extends Controller
                 'order' => $validated['order'] ?? 'desc'
             ];
 
-            $comptes = $this->compteService->getFilteredComptesPaginated(
+            // Get paginated results
+            $user = $request->user();
+            $adminId = $validated['admin_id'] ?? null;
+
+            // Validate authentication or admin access
+            if (!$user && !$adminId) {
+                return $this->errorResponse('Authentification requise ou paramètre admin_id', 401);
+            }
+
+            // If admin_id is provided, verify the user is an admin
+            if ($adminId) {
+                $admin = \App\Models\User::find($adminId);
+                if (!$admin || $admin->role !== 'admin') {
+                    return $this->errorResponse('Accès non autorisé', 403);
+                }
+            }
+
+            // Get paginated results with filters
+            $comptes = $this->compteRepository->getAllComptes(
                 $filters,
                 $validated['page'] ?? 1,
-                $validated['limit'] ?? 10,
-                $user
+                $validated['limit'] ?? 10
             );
 
-            return new PaginatedResource($comptes, SuccessMessages::COMPTES_RECUPERES->value);
+            // If authenticated user is not an admin, filter results to show only their accounts
+            if ($user && $user->role !== 'admin') {
+                $filters['client_id'] = $user->id;
+                $comptes = $this->compteRepository->getAllComptes(
+                    $filters,
+                    $validated['page'] ?? 1,
+                    $validated['limit'] ?? 10
+                );
+            }
+            $adminId = $request->validated()['admin_id'] ?? null;
+            if (!$user && !$adminId) {
+                return $this->errorResponse("Authentification requise ou paramètre admin_id", 401);
+            }
+
+            $query = Compte::with('utilisateur');
+
+            // Construction sécurisée de la requête avec des paramètres liés
+            $query->where(function($q) {
+                $q->where('type', '=', 'epargne')
+                  ->orWhere('type', '=', 'cheque');
+            })
+            ->where('statut', '=', 'actif');
+
+            // For Client, only their own comptes
+            if ($user && $user->role !== 'admin') {
+                $query->where('client_id', $user->id);
+            }
+
+            // Filtres supplémentaires
+            if ($request->has('type') && in_array($request->type, ['epargne', 'cheque'])) {
+                $query->where('type', $request->type);
+            }
+
+            if ($request->has('statut') && in_array($request->statut, ['actif', 'bloque', 'ferme'])) {
+                $query->where('statut', $request->statut);
+            }
+
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('numero', 'like', "%{$search}%")
+                      ->orWhereHas('utilisateur', function ($userQuery) use ($search) {
+                          $userQuery->where('prenom', 'like', "%{$search}%")
+                                    ->orWhere('nom', 'like', "%{$search}%");
+                      });
+                });
+            }
+
+            // Tri
+            $sortField = $request->get('sort', 'dateCreation');
+            $sortOrder = $request->get('order', 'desc');
+
+            $allowedSortFields = ['dateCreation', 'solde', 'titulaire'];
+            if (!in_array($sortField, $allowedSortFields)) {
+                $sortField = 'dateCreation';
+            }
+
+            if ($sortField === 'dateCreation') {
+                $query->orderBy('date_creation', $sortOrder);
+            } elseif ($sortField === 'solde') {
+                $query->orderBy('solde', $sortOrder);
+            } elseif ($sortField === 'titulaire') {
+                $query->join('users', 'comptes.utilisateur_id', '=', 'users.id')
+                      ->orderBy('users.prenom', $sortOrder)
+                      ->orderBy('users.nom', $sortOrder)
+                      ->select('comptes.*');
+            }
+
+            // Pagination
+            $limit = min($request->get('limit', 10), 100);
+
+            try {
+                $comptes = $query->paginate($limit);
+            } catch (\Exception $e) {
+                // If the error is about deleted_at column not existing, try without soft deletes
+                if (str_contains($e->getMessage(), 'deleted_at does not exist')) {
+                    try {
+                        // Create a new query without the global scopes
+                        $queryWithoutScopes = Compte::with('utilisateur');
+
+                        // Reapply all the filters manually
+                        $queryWithoutScopes->whereIn('type', ['epargne', 'cheque'])
+                                           ->where('statut', 'actif');
+
+                        // For Client, only their own comptes
+                        if ($user && $user->role !== 'admin') {
+                            $queryWithoutScopes->where('utilisateur_id', $user->id);
+                        }
+
+                        // Filtres supplémentaires
+                        if ($request->has('type') && in_array($request->type, ['epargne', 'cheque'])) {
+                            $queryWithoutScopes->where('type', $request->type);
+                        }
+
+                        if ($request->has('statut') && in_array($request->statut, ['actif', 'bloque', 'ferme'])) {
+                            $queryWithoutScopes->where('statut', $request->statut);
+                        }
+
+                        if ($request->has('search')) {
+                            $search = $request->search;
+                            $queryWithoutScopes->where(function ($q) use ($search) {
+                                $q->where('numero', 'like', "%{$search}%")
+                                  ->orWhereHas('utilisateur', function ($userQuery) use ($search) {
+                                      $userQuery->where('prenom', 'like', "%{$search}%")
+                                                ->orWhere('nom', 'like', "%{$search}%");
+                                  });
+                            });
+                        }
+
+                        // Tri
+                        $sortField = $request->get('sort', 'dateCreation');
+                        $sortOrder = $request->get('order', 'desc');
+
+                        $allowedSortFields = ['dateCreation', 'solde', 'titulaire'];
+                        if (!in_array($sortField, $allowedSortFields)) {
+                            $sortField = 'dateCreation';
+                        }
+
+                        if ($sortField === 'dateCreation') {
+                            $queryWithoutScopes->orderBy('date_creation', $sortOrder);
+                        } elseif ($sortField === 'solde') {
+                            $queryWithoutScopes->orderBy('solde', $sortOrder);
+                        } elseif ($sortField === 'titulaire') {
+                            $queryWithoutScopes->join('users', 'comptes.utilisateur_id', '=', 'users.id')
+                                              ->orderBy('users.prenom', $sortOrder)
+                                              ->orderBy('users.nom', $sortOrder)
+                                              ->select('comptes.*');
+                        }
+
+                        $comptes = $queryWithoutScopes->paginate($limit);
+                    } catch (\Exception $e2) {
+                        \Log::error('Erreur lors de la pagination des comptes (sans soft delete): ' . $e2->getMessage(), [
+                            'trace' => $e2->getTraceAsString(),
+                            'limit' => $limit
+                        ]);
+                        throw $e2;
+                    }
+                } else {
+                    \Log::error('Erreur lors de la pagination des comptes: ' . $e->getMessage(), [
+                        'trace' => $e->getTraceAsString(),
+                        'query' => $query->toSql(),
+                        'bindings' => $query->getBindings(),
+                        'limit' => $limit
+                    ]);
+                    throw $e;
+                }
+            }
+
+            return $this->paginatedResponse($comptes, 'Comptes récupérés');
         } catch (\Exception $e) {
             \Log::error('Erreur lors de la récupération des comptes: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
@@ -287,7 +436,7 @@ class CompteController extends Controller
                 'user' => $user ? ['id' => $user->id, 'role' => $user->role] : 'non authentifié'
             ]);
 
-            return new ErrorResource(ErrorMessages::ERREUR_RECUPERATION_COMPTES->value, [], 500);
+            return $this->errorResponse("Erreur interne du serveur - " . $e->getMessage(), 500);
         }
     }
 
@@ -349,7 +498,7 @@ class CompteController extends Controller
     {
         // L'ID est déjà validé par ShowCompteRequest
         $compte = $this->compteRepository->getCompteById($id);
-            return new SuccessResource(new CompteResource($compte), SuccessMessages::COMPTE_RECUPERE->value);
+        return $this->successResponse(new CompteResource($compte), 'Détails du compte');
     }
 
     /**
@@ -415,24 +564,24 @@ class CompteController extends Controller
             $userId = $user?->id ?? $request->validated()['user_id'] ?? null;
 
             if (!$userId) {
-                return new ErrorResource(ErrorMessages::PARAMETRE_ADMIN_ID_REQUIS->value, [], 400);
+                return $this->errorResponse("Paramètre 'user_id' requis lorsque non authentifié", 400);
             }
 
             // Verify if user exists
             $userExists = \App\Models\User::where('id', $userId)->exists();
             if (!$userExists) {
-                return new ErrorResource(ErrorMessages::COMPTE_NON_TROUVE->value, [], 404);
+                return $this->errorResponse("Utilisateur non trouvé", 404);
             }
 
             $comptes = $this->compteRepository->getActiveComptesByUserId($userId);
-            return new SuccessResource(CompteResource::collection($comptes), SuccessMessages::COMPTES_RECUPERES->value);
+            return $this->successResponse(CompteResource::collection($comptes), 'Comptes de l\'utilisateur');
         } catch (\Exception $e) {
             \Log::error('Erreur lors de la récupération des comptes utilisateur: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'user_id' => $userId ?? 'non défini',
                 'request' => $request->all()
             ]);
-            return new ErrorResource(ErrorMessages::ERREUR_INTERNE->value, [], 500);
+            return $this->errorResponse("Erreur interne du serveur", 500);
         }
     }
 
@@ -511,18 +660,75 @@ class CompteController extends Controller
         try {
             $validated = $request->validated();
 
+            // Find existing client by id, email or telephone (in that order)
+            $client = null;
+            $clientInput = $validated['client'] ?? [];
+
+            if (!empty($clientInput['id'])) {
+                $client = User::find($clientInput['id']);
+            }
+
+            if (!$client && !empty($clientInput['email'])) {
+                $client = User::where('email', $clientInput['email'])->first();
+            }
+
+            if (!$client && !empty($clientInput['telephone'])) {
+                $client = User::where('telephone', $clientInput['telephone'])->first();
+            }
+
+            if (!$client) {
+                // Create new client and send credentials + verification code
+                $password = Str::random(8);
+                // Use a 6-digit numeric code for SMS verification
+                $code = str_pad((string) mt_rand(0, 999999), 6, '0', STR_PAD_LEFT);
+
+                // Parse titulaire into prenom / nom more robustly
+                $titulaire = $clientInput['titulaire'] ?? '';
+                $parts = preg_split('/\s+/', trim($titulaire));
+                $prenom = $parts[0] ?? '';
+                $nom = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : ($parts[0] ?? '');
+
+                $client = User::create([
+                    'nom' => $nom,
+                    'prenom' => $prenom,
+                    'email' => $clientInput['email'] ?? null,
+                    'telephone' => $clientInput['telephone'] ?? null,
+                    'adresse' => $clientInput['adresse'] ?? null,
+                    'nci' => $clientInput['nci'] ?? null,
+                    'code' => $code,
+                    'password' => Hash::make($password),
+                    // DB uses 'user' for client role (enum: 'admin','user')
+                    'role' => 'user',
+                ]);
+
+                // Fire event for notifications (email + SMS)
+                event(new ClientCreated($client, $password, $code));
+            }
+
+            // Create account — only include 'devise' if the DB column exists (migrations may be out of sync)
             $compteData = [
                 'type' => $validated['type'],
                 'solde' => $validated['solde'],
+                'statut' => 'actif',
+                'date_creation' => now(),
+                // DB column is client_id (UUID foreign key)
+                'client_id' => $client->id,
             ];
 
             if (Schema::hasColumn('comptes', 'devise')) {
                 $compteData['devise'] = $validated['devise'] ?? 'FCFA';
             }
 
-            $compte = $this->compteService->createCompteWithClient($compteData, $validated['client'] ?? []);
+            $compte = Compte::create($compteData);
 
-            return new SuccessResource(new CompteResource($compte), SuccessMessages::COMPTE_CREE->value, 201);
+            // Load the client relationship
+            $compte->load('utilisateur');
+
+            return $this->successResponse(
+                new CompteResource($compte),
+                'Compte créé avec succès',
+                201
+            );
 
         } catch (\Exception $e) {
             \Log::error('Erreur lors de la création du compte: ' . $e->getMessage(), [
@@ -530,7 +736,7 @@ class CompteController extends Controller
                 'request' => $request->all()
             ]);
 
-            return new ErrorResource(ErrorMessages::ERREUR_CREATION_COMPTE->value, [], 500);
+            return $this->errorResponse("Erreur lors de la création du compte", 500);
         }
     }
 
@@ -614,18 +820,81 @@ class CompteController extends Controller
         try {
             $validated = $request->validated();
 
-            $compte = $this->compteService->updateCompteClientInfo($compteId, $validated);
+            // Find the compte
+            $compte = Compte::find($compteId);
+            if (!$compte) {
+                return $this->errorResponse("Compte non trouvé", 404);
+            }
 
-            return new SuccessResource(new CompteResource($compte), SuccessMessages::COMPTE_MIS_A_JOUR->value);
+            // Règle métier : n'autoriser le blocage QUE pour les comptes de type 'epargne'
+            // Si le compte n'est pas de type 'epargne' (par ex. 'cheque'), refuser l'opération
+            if (!isset($compte->type) || strtolower($compte->type) !== 'epargne') {
+                return $this->errorResponse("Seul un compte d'épargne peut être bloqué via cette opération", 422);
+            }
+
+            // Get the associated user
+            $user = $compte->utilisateur;
+            if (!$user) {
+                return $this->errorResponse("Utilisateur associé non trouvé", 404);
+            }
+
+            \DB::beginTransaction();
+
+            // Update titulaire if provided
+            if (isset($validated['titulaire'])) {
+                // Parse titulaire into prenom / nom
+                $titulaire = $validated['titulaire'];
+                $parts = preg_split('/\s+/', trim($titulaire));
+                $prenom = $parts[0] ?? '';
+                $nom = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : ($parts[0] ?? '');
+
+                $user->prenom = $prenom;
+                $user->nom = $nom;
+            }
+
+            // Update client information if provided
+            if (isset($validated['informationsClient'])) {
+                $clientInfo = $validated['informationsClient'];
+
+                if (isset($clientInfo['telephone'])) {
+                    $user->telephone = $clientInfo['telephone'];
+                }
+
+                if (isset($clientInfo['email'])) {
+                    $user->email = $clientInfo['email'];
+                }
+
+                if (isset($clientInfo['password'])) {
+                    $user->password = Hash::make($clientInfo['password']);
+                }
+
+                if (isset($clientInfo['nci'])) {
+                    $user->nci = $clientInfo['nci'];
+                }
+            }
+
+            // Save user changes
+            $user->save();
+
+            \DB::commit();
+
+            // Load the updated relationship
+            $compte->load('utilisateur');
+
+            return $this->successResponse(
+                new CompteResource($compte),
+                'Compte mis à jour avec succès'
+            );
 
         } catch (\Exception $e) {
+            \DB::rollBack();
             \Log::error('Erreur lors de la mise à jour du compte: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'compte_id' => $compteId,
                 'request' => $request->all()
             ]);
 
-            return new ErrorResource(ErrorMessages::ERREUR_MISE_A_JOUR_COMPTE->value, [], 500);
+            return $this->errorResponse("Erreur lors de la mise à jour du compte", 500);
         }
     }
 
@@ -699,7 +968,7 @@ class CompteController extends Controller
 
             // Allow access if authenticated as admin or admin_id provided
             if (!$user && !$adminId) {
-            return new ErrorResource(ErrorMessages::ID_ADMINISTRATEUR_REQUIS->value, [], 401);
+                return $this->errorResponse("ID administrateur requis", 401);
             }
 
             // Determine admin user
@@ -709,15 +978,37 @@ class CompteController extends Controller
             }
 
             if (!$admin || !in_array(strtolower($admin->role), ['admin', 'administrateur', 'Admin'])) {
-                return new ErrorResource(ErrorMessages::ADMIN_REQUIS_BLOQUER_COMPTE->value, [], 403);
+                return $this->errorResponse("Seul un administrateur peut bloquer un compte", 403);
             }
 
-            $compte = $this->compteService->bloquerCompte($compteId, [
-                'date_debut_blocage' => $request->date_debut_blocage,
-                'date_fin_blocage' => $request->date_fin_blocage,
-            ]);
+            $compte = Compte::find($compteId);
+            if (!$compte) {
+                return $this->errorResponse("Compte non trouvé", 404);
+            }
 
-            return new SuccessResource(new CompteResource($compte), SuccessMessages::COMPTE_BLOQUE->value);
+            // Règle métier : n'autoriser le blocage QUE pour les comptes de type 'epargne'
+            // Si le compte n'est pas de type 'epargne' (par ex. 'cheque'), refuser l'opération
+            if (!isset($compte->type) || strtolower($compte->type) !== 'epargne') {
+                return $this->errorResponse("Seul un compte d'épargne peut être bloqué", 422);
+            }
+
+            // Update compte with blocking dates and status
+            $updateData = ['statut' => 'bloque'];
+
+            if (Schema::hasColumn('comptes', 'date_debut_blocage')) {
+                $updateData['date_debut_blocage'] = $request->date_debut_blocage;
+            }
+
+            if (Schema::hasColumn('comptes', 'date_fin_blocage')) {
+                $updateData['date_fin_blocage'] = $request->date_fin_blocage;
+            }
+
+            $compte->update($updateData);
+
+            return $this->successResponse(
+                new CompteResource($compte),
+                'Compte bloqué avec succès'
+            );
 
         } catch (\Exception $e) {
             \Log::error('Erreur lors du blocage du compte: ' . $e->getMessage(), [
@@ -726,7 +1017,7 @@ class CompteController extends Controller
                 'request' => $request->all()
             ]);
 
-            return new ErrorResource(ErrorMessages::ERREUR_BLOCAGE_COMPTE->value, [], 500);
+            return $this->errorResponse("Erreur lors du blocage du compte", 500);
         }
     }
 }

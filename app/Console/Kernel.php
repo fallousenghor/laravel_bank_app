@@ -14,8 +14,9 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')->hourly();
 
-        // Schedule archiving job to run daily at midnight
-        $schedule->job(new \App\Jobs\ArchiveComptesJob)->daily();
+    // Archive job scheduling has been disabled to avoid background archiving side-effects.
+    // If needed in the future re-enable the job by scheduling it here.
+    // $schedule->job(new \App\Jobs\ArchiveComptesJob)->daily();
 
         // Schedule unarchiving job to run daily at midnight
         $schedule->job(new \App\Jobs\UnarchiveComptesJob)->daily();

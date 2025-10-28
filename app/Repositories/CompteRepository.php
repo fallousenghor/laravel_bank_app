@@ -72,11 +72,11 @@ class CompteRepository implements CompteRepositoryInterface
         \DB::beginTransaction();
         try {
             // Vérifier si l'utilisateur existe, sinon le créer
-            $user = User::where('name', $compteDetails['titulaire'])->first();
+            $user = \App\Models\User::where('name', $compteDetails['titulaire'])->first();
 
             if (!$user) {
                 // Créer un nouvel utilisateur
-                $user = User::create([
+                $user = \App\Models\User::create([
                     'name' => $compteDetails['titulaire'],
                     'email' => $compteDetails['email'] ?? null,
                     'password' => \Hash::make(\Str::random(10)) // Mot de passe temporaire
@@ -92,7 +92,8 @@ class CompteRepository implements CompteRepositoryInterface
             // Créer le compte
             $compte = Compte::create($compteDetails);
 
-            // L'événement sera déclenché automatiquement par l'observer
+            // Déclencher l'événement de création de compte
+            event(new \App\Events\CompteCreated($compte));
 
             \DB::commit();
             return $compte;
@@ -135,6 +136,4 @@ class CompteRepository implements CompteRepositoryInterface
             ->where('statut', 'actif')
             ->get();
     }
-
-
 }
