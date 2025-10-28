@@ -3,6 +3,12 @@ services:
     name: fallou-senghor-bank
     env: docker
     plan: free
+    autoDeploy: true
+    disks:
+      - name: data
+        mountPath: /var/www/html/storage
+        sizeGB: 1
+
     envVars:
       - key: APP_NAME
         value: "Bank App"
@@ -31,7 +37,7 @@ services:
       - key: DB_USERNAME
         value: neondb_owner
       - key: DB_PASSWORD
-        value: npg_JTkO6wecp8Sr
+        sync: false
       - key: DB_SSLMODE
         value: require
       - key: CACHE_DRIVER
@@ -43,8 +49,5 @@ services:
       - key: FILESYSTEM_DISK
         value: local
     healthCheckPath: /api/health
-  autoDeploy: true
-    disk:
-      name: data
-      mountPath: /var/www/html/storage
-      sizeGB: 1
+    releaseCommand: php artisan migrate --force
+
