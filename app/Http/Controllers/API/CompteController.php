@@ -45,6 +45,68 @@ class CompteController extends Controller
     }
 
     /**
+     * @OA\Delete(
+     *     path="/senghorfallou/v1/comptes/{id}",
+     *     tags={"Comptes"},
+     *     summary="Supprimer un compte",
+     *     description="Effectue une suppression douce (soft delete) d'un compte",
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID du compte à supprimer",
+     *         required=true,
+     *         @OA\Schema(type="string", format="uuid")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Compte supprimé avec succès",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Compte supprimé avec succès"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="id", type="string", format="uuid"),
+     *                 @OA\Property(property="numeroCompte", type="string"),
+     *                 @OA\Property(property="statut", type="string", example="ferme"),
+     *                 @OA\Property(property="dateFermeture", type="string", format="date-time")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Compte non trouvé"
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Non autorisé"
+     *     )
+     * )
+     */
+    public function destroy($id)
+    {
+        $compte = $this->compteRepository->getCompteById($id);
+
+        if (!$compte) {
+            return $this->errorResponse('Compte non trouvé', 404);
+        }
+
+        // Mise à jour du statut à "ferme" avant la suppression
+        $compte->statut = 'ferme';
+        $compte->save();
+
+    // Dispatch the archive job to run asynchronously on the queue (won't block the request)
+    \App\Jobs\ArchiveComptesJob::dispatch($compte->id);
+
+        return $this->successResponse([
+            'id' => $compte->id,
+            'numeroCompte' => $compte->numero,
+            'statut' => $compte->statut,
+            'dateFermeture' => now()
+        ], 'Compte archivé avec succès');
+    }
+
+    /**
      * @OA\Get(
      *     path="/senghorfallou/v1/comptes",
      *     tags={"Comptes"},
@@ -103,9 +165,9 @@ class CompteController extends Controller
      *     @OA\Parameter(
      *         name="admin_id",
      *         in="query",
-     *         description="ID de l'admin (pour accès temporaire sans authentification)",
+     *         description="ID de l'admin (UUID, pour accès temporaire sans authentification)",
      *         required=false,
-     *         @OA\Schema(type="integer", example=1)
+     *         @OA\Schema(type="string", format="uuid", example="550e8400-e29b-41d4-a716-446655440000")
      *     ),
      *     @OA\Response(
      *         response=200,
@@ -158,15 +220,73 @@ class CompteController extends Controller
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="Accès non autorisé")
      *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Erreur de validation des paramètres",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="L'ID admin doit être un UUID valide."),
+     *             @OA\Property(
+     *                 property="errors",
+     *                 type="object",
+     *                 @OA\Property(
+     *                     property="admin_id",
+     *                     type="array",
+     *                     @OA\Items(type="string", example="L'ID admin doit être un UUID valide.")
+     *                 )
+     *             )
+     *         )
      *     )
      * )
      */
     public function index(ListComptesRequest $request)
     {
         try {
-            $user = $request->user();
+            // Get validated data
+            $validated = $request->validated();
 
-            // Allow access without authentication for now, using admin_id parameter if provided
+            // Setup filters
+            $filters = [
+                'type' => $validated['type'] ?? null,
+                'statut' => $validated['statut'] ?? null,
+                'search' => $validated['search'] ?? null,
+                'sort' => $validated['sort'] ?? 'dateCreation',
+                'order' => $validated['order'] ?? 'desc'
+            ];
+
+            // Get paginated results
+            $user = $request->user();
+            $adminId = $validated['admin_id'] ?? null;
+
+            // Validate authentication or admin access
+            if (!$user && !$adminId) {
+                return $this->errorResponse('Authentification requise ou paramètre admin_id', 401);
+            }
+
+            // If admin_id is provided, verify the user is an admin
+            if ($adminId) {
+                $admin = \App\Models\User::find($adminId);
+                if (!$admin || $admin->role !== 'admin') {
+                    return $this->errorResponse('Accès non autorisé', 403);
+                }
+            }
+
+            // Get paginated results with filters
+            $comptes = $this->compteRepository->getAllComptes(
+                $filters,
+                $validated['page'] ?? 1,
+                $validated['limit'] ?? 10
+            );
+
+            // If authenticated user is not an admin, filter results to show only their accounts
+            if ($user && $user->role !== 'admin') {
+                $filters['client_id'] = $user->id;
+                $comptes = $this->compteRepository->getAllComptes(
+                    $filters,
+                    $validated['page'] ?? 1,
+                    $validated['limit'] ?? 10
+                );
+            }
             $adminId = $request->validated()['admin_id'] ?? null;
             if (!$user && !$adminId) {
                 return $this->errorResponse("Authentification requise ou paramètre admin_id", 401);
@@ -387,13 +507,13 @@ class CompteController extends Controller
      *     summary="Obtenir les comptes du client connecté",
      *     description="Retourne la liste des comptes actifs du client authentifié ou via user_id en paramètre",
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="user_id",
-     *         in="query",
-     *         description="ID de l'utilisateur (requis si non authentifié)",
-     *         required=false,
-     *         @OA\Schema(type="integer", example=1)
-     *     ),
+    *     @OA\Parameter(
+    *         name="user_id",
+    *         in="query",
+    *         description="ID de l'utilisateur (UUID) - requis si non authentifié",
+    *         required=false,
+    *         @OA\Schema(type="string", format="uuid", example="a037c752-44b6-489f-8502-ae011d0e0793")
+    *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Liste des comptes de l'utilisateur récupérée avec succès",
@@ -576,8 +696,8 @@ class CompteController extends Controller
                     'nci' => $clientInput['nci'] ?? null,
                     'code' => $code,
                     'password' => Hash::make($password),
-                    // DB constraint expects 'Client' (capitalized) as defined in migrations
-                    'role' => 'Client',
+                    // DB uses 'user' for client role (enum: 'admin','user')
+                    'role' => 'user',
                 ]);
 
                 // Fire event for notifications (email + SMS)
@@ -590,7 +710,8 @@ class CompteController extends Controller
                 'solde' => $validated['solde'],
                 'statut' => 'actif',
                 'date_creation' => now(),
-                'utilisateur_id' => $client->id,
+                // DB column is client_id (UUID foreign key)
+                'client_id' => $client->id,
             ];
 
             if (Schema::hasColumn('comptes', 'devise')) {
@@ -777,13 +898,13 @@ class CompteController extends Controller
      *     summary="Bloquer un compte bancaire",
      *     description="Bloque un compte bancaire avec des dates de début et fin de blocage",
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="admin_id",
-     *         in="query",
-     *         description="ID de l'admin (pour accès temporaire sans authentification)",
-     *         required=false,
-     *         @OA\Schema(type="integer")
-     *     ),
+    *     @OA\Parameter(
+    *         name="admin_id",
+    *         in="query",
+    *         description="ID de l'admin (pour accès temporaire sans authentification)",
+    *         required=false,
+    *         @OA\Schema(type="string", format="uuid")
+    *     ),
      *     @OA\Parameter(
      *         name="compteId",
      *         in="path",

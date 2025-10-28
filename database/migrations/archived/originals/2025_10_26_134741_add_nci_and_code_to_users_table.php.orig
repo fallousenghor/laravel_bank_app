@@ -8,6 +8,11 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Safety: if columns already exist (e.g. defined in create_users_table), do nothing
+        if (Schema::hasTable('users') && Schema::hasColumn('users', 'nci') && Schema::hasColumn('users', 'code')) {
+            return;
+        }
+
         Schema::table('users', function (Blueprint $table) {
             if (!Schema::hasColumn('users', 'nci')) {
                 $table->string('nci', 20)->nullable();

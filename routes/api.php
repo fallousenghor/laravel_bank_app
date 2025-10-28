@@ -13,7 +13,7 @@ Route::get('/health', function() {
     return response()->json(['status' => 'healthy'], 200);
 });
 
-Route::prefix('v1')->group(function () {
+Route::group(['prefix' => 'v1'], function () {
 
     Route::get('/users', [UserController::class, 'index']);
     Route::get('/users/{id}', [UserController::class, 'show']);
@@ -26,10 +26,9 @@ Route::prefix('v1')->group(function () {
         Route::get('comptes/{id}', [CompteController::class, 'show']);
         Route::patch('comptes/{compteId}', [CompteController::class, 'update']);
         Route::post('comptes/{compteId}/bloquer', [CompteController::class, 'bloquer']);
+        Route::delete('comptes/{id}', [CompteController::class, 'destroy']);
 
-
-
-    Route::get('/transactions', [TransactionController::class, 'index']);
-    Route::get('/transactions/{id}', [TransactionController::class, 'show']);
-});
+        Route::get('/transactions', [TransactionController::class, 'index']);
+        Route::get('/transactions/{id}', [TransactionController::class, 'show']);
+    });
 });

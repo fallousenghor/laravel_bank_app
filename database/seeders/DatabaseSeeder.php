@@ -19,13 +19,17 @@ class DatabaseSeeder extends Seeder
             return;
         }
 
-        // Create admin user (idempotent guard above prevents duplicates)
-        \App\Models\User::factory()->create([
+        // Create admin user with specific UUID (idempotent guard above prevents duplicates)
+        \App\Models\User::create([
+            'id' => '550e8400-e29b-41d4-a716-446655440000', // Specific UUID for easy testing
             'prenom' => 'Admin',
             'nom' => 'System',
+            'name' => 'Admin System',
             'email' => 'admin@example.com',
-            'role' => 'Admin',
-            'password' => bcrypt('password123')
+            'role' => 'admin',
+            'password' => bcrypt('password123'),
+            'nci' => '12345678901',
+            'code' => '123456'
         ]);
 
         // Create 9 regular users

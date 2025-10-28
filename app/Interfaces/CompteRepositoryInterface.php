@@ -4,7 +4,7 @@ namespace App\Interfaces;
 
 interface CompteRepositoryInterface
 {
-    public function getAllComptes();
+    public function getAllComptes(array $filters = [], int $page = 1, int $limit = 10);
     public function getCompteById($compteId);
     public function createCompte(array $compteDetails);
     public function updateCompte($compteId, array $compteDetails);

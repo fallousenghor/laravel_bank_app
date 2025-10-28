@@ -47,7 +47,7 @@ return new class extends Migration
             $table->dropIndex(['compte_id']);
             $table->dropIndex(['type']);
             $table->dropIndex(['montant']);
-            $table->dropIndex(['date']);
+            $table->dropIndex(['transaction_date']);
         });
 
         // Suppression des index de la table comptes

@@ -12,9 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('comptes', function (Blueprint $table) {
-            $table->dropForeign(['utilisateur_id']);
-            $table->dropColumn('utilisateur_id');
-            $table->foreignId('client_id')->constrained('users')->onDelete('cascade');
+            $table->timestamp('date_debut_blocage')->nullable();
+            $table->timestamp('date_fin_blocage')->nullable();
         });
     }
 
@@ -24,9 +23,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('comptes', function (Blueprint $table) {
-            $table->dropForeign(['client_id']);
-            $table->dropColumn('client_id');
-            $table->foreignId('utilisateur_id')->constrained('users')->onDelete('cascade');
+            $table->dropColumn(['date_debut_blocage', 'date_fin_blocage']);
         });
     }
 };

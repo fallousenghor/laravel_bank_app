@@ -22,7 +22,8 @@ class MineComptesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'user_id' => 'nullable|integer|exists:users,id',
+            // Users in this app use UUIDs as primary keys, accept UUID strings
+            'user_id' => ['nullable', 'string', 'uuid', 'exists:users,id'],
         ];
     }
 
@@ -34,7 +35,7 @@ class MineComptesRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'user_id.integer' => 'L\'ID utilisateur doit être un entier.',
+            'user_id.uuid' => 'L\'ID utilisateur doit être un UUID valide.',
             'user_id.exists' => 'L\'utilisateur spécifié n\'existe pas.',
         ];
     }

@@ -20,7 +20,7 @@ class TransactionFactory extends Factory
         return [
             'montant' => $this->faker->randomFloat(2, 10, 1000),
             'type' => $this->faker->randomElement(['debit', 'credit']),
-            'date' => $this->faker->dateTimeThisYear(),
+            'transaction_date' => $this->faker->dateTimeThisYear(),
             'compte_id' => Compte::factory(),
         ];
     }

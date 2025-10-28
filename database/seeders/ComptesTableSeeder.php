@@ -13,8 +13,8 @@ class ComptesTableSeeder extends Seeder
      */
     public function run(): void
     {
-        // For each existing user, create 2 comptes
-        User::all()->each(function ($user) {
+        // Create comptes for non-admin users only (case-insensitive check)
+        User::whereRaw("LOWER(role) != 'admin'")->get()->each(function ($user) {
             Compte::factory(2)->create([
                 'client_id' => $user->id,
             ]);
