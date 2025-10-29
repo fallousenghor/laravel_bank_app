@@ -14,4 +14,6 @@ interface CompteRepositoryInterface
     public function getActiveComptes();
     // Récupère les comptes actifs de types Épargne ou Chèque pour un utilisateur
     public function getActiveComptesByUserId($userId);
+    // Récupère un compte par son numéro unique
+    public function getCompteByNumero(string $numero);
 }

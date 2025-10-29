@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Schema;
 use OpenApi\Annotations as OA;
 use App\Interfaces\CompteRepositoryInterface;
 use App\Traits\ApiResponse;
+use Illuminate\Http\Request;
 
 /**
  * @OA\Info(
@@ -163,13 +164,7 @@ class CompteController extends Controller
      *         required=false,
      *         @OA\Schema(type="string", enum={"asc", "desc"})
      *     ),
-     *     @OA\Parameter(
-     *         name="admin_id",
-     *         in="query",
-     *         description="ID de l'admin (UUID, pour accès temporaire sans authentification)",
-     *         required=false,
-     *         @OA\Schema(type="string", format="uuid", example="550e8400-e29b-41d4-a716-446655440000")
-     *     ),
+    
      *     @OA\Response(
      *         response=200,
      *         description="Liste des comptes récupérée avec succès",
@@ -206,14 +201,14 @@ class CompteController extends Controller
      *             )
      *         )
      *     ),
-     *     @OA\Response(
-     *         response=401,
-     *         description="Non authentifié ou ID administrateur requis",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=false),
-     *             @OA\Property(property="message", type="string", example="Authentification requise ou paramètre admin_id")
-     *         )
-     *     ),
+    *     @OA\Response(
+    *         response=401,
+    *         description="Non authentifié",
+    *         @OA\JsonContent(
+    *             @OA\Property(property="success", type="boolean", example=false),
+    *             @OA\Property(property="message", type="string", example="Authentification requise")
+    *         )
+    *     ),
      *     @OA\Response(
      *         response=403,
      *         description="Accès non autorisé",
@@ -222,22 +217,13 @@ class CompteController extends Controller
      *             @OA\Property(property="message", type="string", example="Accès non autorisé")
      *         )
      *     ),
-     *     @OA\Response(
-     *         response=422,
-     *         description="Erreur de validation des paramètres",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="L'ID admin doit être un UUID valide."),
-     *             @OA\Property(
-     *                 property="errors",
-     *                 type="object",
-     *                 @OA\Property(
-     *                     property="admin_id",
-     *                     type="array",
-     *                     @OA\Items(type="string", example="L'ID admin doit être un UUID valide.")
-     *                 )
-     *             )
-     *         )
-     *     )
+    *     @OA\Response(
+    *         response=422,
+    *         description="Erreur de validation des paramètres",
+    *         @OA\JsonContent(
+    *             @OA\Property(property="message", type="string", example="Erreur de validation des paramètres")
+    *         )
+    *     )
      * )
      */
     public function index(ListComptesRequest $request)
@@ -257,182 +243,28 @@ class CompteController extends Controller
 
             // Get paginated results
             $user = $request->user();
-            $adminId = $validated['admin_id'] ?? null;
 
-            // Validate authentication or admin access
-            if (!$user && !$adminId) {
-                return $this->errorResponse('Authentification requise ou paramètre admin_id', 401);
+            // Require authentication. Admin role is determined from the authenticated user.
+            if (!$user) {
+                return $this->errorResponse('Authentification requise', 401);
             }
 
-            // If admin_id is provided, verify the user is an admin
-            if ($adminId) {
-                $admin = \App\Models\User::find($adminId);
-                if (!$admin || $admin->role !== 'admin') {
-                    return $this->errorResponse('Accès non autorisé', 403);
-                }
-            }
-
-            // Get paginated results with filters
-            $comptes = $this->compteRepository->getAllComptes(
-                $filters,
-                $validated['page'] ?? 1,
-                $validated['limit'] ?? 10
-            );
-
-            // If authenticated user is not an admin, filter results to show only their accounts
+            // If authenticated user is not an admin, restrict to their comptes
             if ($user && $user->role !== 'admin') {
                 $filters['client_id'] = $user->id;
-                $comptes = $this->compteRepository->getAllComptes(
-                    $filters,
-                    $validated['page'] ?? 1,
-                    $validated['limit'] ?? 10
-                );
-            }
-            $adminId = $request->validated()['admin_id'] ?? null;
-            if (!$user && !$adminId) {
-                return $this->errorResponse("Authentification requise ou paramètre admin_id", 401);
             }
 
-            $query = Compte::with('utilisateur');
+            // Pagination params
+            $page = $validated['page'] ?? 1;
+            $limit = min($validated['limit'] ?? 10, 100);
 
-            // Construction sécurisée de la requête avec des paramètres liés
-            $query->where(function($q) {
-                $q->where('type', '=', 'epargne')
-                  ->orWhere('type', '=', 'cheque');
-            })
-            ->where('statut', '=', 'actif');
+            // Delegate query building to repository (which will handle relations and sorting)
+            $comptes = $this->compteRepository->getAllComptes($filters, $page, $limit);
 
-            // For Client, only their own comptes
-            if ($user && $user->role !== 'admin') {
-                $query->where('client_id', $user->id);
-            }
-
-            // Filtres supplémentaires
-            if ($request->has('type') && in_array($request->type, ['epargne', 'cheque'])) {
-                $query->where('type', $request->type);
-            }
-
-            if ($request->has('statut') && in_array($request->statut, ['actif', 'bloque', 'ferme'])) {
-                $query->where('statut', $request->statut);
-            }
-
-            if ($request->has('search')) {
-                $search = $request->search;
-                $query->where(function ($q) use ($search) {
-                    $q->where('numero', 'like', "%{$search}%")
-                      ->orWhereHas('utilisateur', function ($userQuery) use ($search) {
-                          $userQuery->where('prenom', 'like', "%{$search}%")
-                                    ->orWhere('nom', 'like', "%{$search}%");
-                      });
-                });
-            }
-
-            // Tri
-            $sortField = $request->get('sort', 'dateCreation');
-            $sortOrder = $request->get('order', 'desc');
-
-            $allowedSortFields = ['dateCreation', 'solde', 'titulaire'];
-            if (!in_array($sortField, $allowedSortFields)) {
-                $sortField = 'dateCreation';
-            }
-
-            if ($sortField === 'dateCreation') {
-                $query->orderBy('date_creation', $sortOrder);
-            } elseif ($sortField === 'solde') {
-                $query->orderBy('solde', $sortOrder);
-            } elseif ($sortField === 'titulaire') {
-                $query->join('users', 'comptes.utilisateur_id', '=', 'users.id')
-                      ->orderBy('users.prenom', $sortOrder)
-                      ->orderBy('users.nom', $sortOrder)
-                      ->select('comptes.*');
-            }
-
-            // Pagination
-            $limit = min($request->get('limit', 10), 100);
-
-            try {
-                $comptes = $query->paginate($limit);
-            } catch (\Exception $e) {
-                // If the error is about deleted_at column not existing, try without soft deletes
-                if (str_contains($e->getMessage(), 'deleted_at does not exist')) {
-                    try {
-                        // Create a new query without the global scopes
-                        $queryWithoutScopes = Compte::with('utilisateur');
-
-                        // Reapply all the filters manually
-                        $queryWithoutScopes->whereIn('type', ['epargne', 'cheque'])
-                                           ->where('statut', 'actif');
-
-                        // For Client, only their own comptes
-                        if ($user && $user->role !== 'admin') {
-                            $queryWithoutScopes->where('utilisateur_id', $user->id);
-                        }
-
-                        // Filtres supplémentaires
-                        if ($request->has('type') && in_array($request->type, ['epargne', 'cheque'])) {
-                            $queryWithoutScopes->where('type', $request->type);
-                        }
-
-                        if ($request->has('statut') && in_array($request->statut, ['actif', 'bloque', 'ferme'])) {
-                            $queryWithoutScopes->where('statut', $request->statut);
-                        }
-
-                        if ($request->has('search')) {
-                            $search = $request->search;
-                            $queryWithoutScopes->where(function ($q) use ($search) {
-                                $q->where('numero', 'like', "%{$search}%")
-                                  ->orWhereHas('utilisateur', function ($userQuery) use ($search) {
-                                      $userQuery->where('prenom', 'like', "%{$search}%")
-                                                ->orWhere('nom', 'like', "%{$search}%");
-                                  });
-                            });
-                        }
-
-                        // Tri
-                        $sortField = $request->get('sort', 'dateCreation');
-                        $sortOrder = $request->get('order', 'desc');
-
-                        $allowedSortFields = ['dateCreation', 'solde', 'titulaire'];
-                        if (!in_array($sortField, $allowedSortFields)) {
-                            $sortField = 'dateCreation';
-                        }
-
-                        if ($sortField === 'dateCreation') {
-                            $queryWithoutScopes->orderBy('date_creation', $sortOrder);
-                        } elseif ($sortField === 'solde') {
-                            $queryWithoutScopes->orderBy('solde', $sortOrder);
-                        } elseif ($sortField === 'titulaire') {
-                            $queryWithoutScopes->join('users', 'comptes.utilisateur_id', '=', 'users.id')
-                                              ->orderBy('users.prenom', $sortOrder)
-                                              ->orderBy('users.nom', $sortOrder)
-                                              ->select('comptes.*');
-                        }
-
-                        $comptes = $queryWithoutScopes->paginate($limit);
-                    } catch (\Exception $e2) {
-                        \Log::error('Erreur lors de la pagination des comptes (sans soft delete): ' . $e2->getMessage(), [
-                            'trace' => $e2->getTraceAsString(),
-                            'limit' => $limit
-                        ]);
-                        throw $e2;
-                    }
-                } else {
-                    \Log::error('Erreur lors de la pagination des comptes: ' . $e->getMessage(), [
-                        'trace' => $e->getTraceAsString(),
-                        'query' => $query->toSql(),
-                        'bindings' => $query->getBindings(),
-                        'limit' => $limit
-                    ]);
-                    throw $e;
-                }
-            }
-
-            return $this->paginatedResponse($comptes, 'Comptes récupérés');
         } catch (\Exception $e) {
             \Log::error('Erreur lors de la récupération des comptes: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'request' => $request->all(),
-                'admin_id' => $adminId ?? 'non défini',
                 'user' => $user ? ['id' => $user->id, 'role' => $user->role] : 'non authentifié'
             ]);
 
@@ -441,58 +273,7 @@ class CompteController extends Controller
     }
 
     /**
-     * @OA\Get(
-    *     path="/api/v1/comptes/{id}",
-     *     tags={"Comptes"},
-     *     summary="Obtenir les détails d'un compte spécifique",
-     *     description="Retourne les détails d'un compte bancaire spécifique avec son utilisateur",
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="id",
-     *         in="path",
-     *         description="ID du compte (UUID)",
-     *         required=true,
-     *         @OA\Schema(type="string", format="uuid")
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Détails du compte récupérés avec succès",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="data", type="object",
-     *                 @OA\Property(property="id", type="string", format="uuid", example="a02eab71-0ae7-48cf-bc37-92d0493737e1"),
-     *                 @OA\Property(property="numeroCompte", type="string", example="CPT123456"),
-     *                 @OA\Property(property="titulaire", type="string", example="Amadou Diallo"),
-     *                 @OA\Property(property="type", type="string", enum={"Épargne", "Chèque"}, example="Épargne"),
-     *                 @OA\Property(property="solde", type="number", format="float", example=1000.50),
-     *                 @OA\Property(property="devise", type="string", example="FCFA"),
-     *                 @OA\Property(property="statut", type="string", enum={"Actif", "Bloqué", "Fermé"}, example="Actif"),
-     *                 @OA\Property(property="dateCreation", type="string", format="date-time", example="2023-10-23T00:00:00Z"),
-     *                 @OA\Property(property="metadata", type="object",
-     *                     @OA\Property(property="derniereModification", type="string", format="date-time", example="2023-06-10T14:30:00Z"),
-     *                     @OA\Property(property="version", type="integer", example=1)
-     *                 )
-     *             ),
-     *             @OA\Property(property="message", type="string", example="Détails du compte")
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=401,
-     *         description="ID administrateur requis",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=false),
-     *             @OA\Property(property="message", type="string", example="ID administrateur requis")
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=404,
-     *         description="Compte non trouvé",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=false),
-     *             @OA\Property(property="message", type="string", example="Compte non trouvé")
-     *         )
-     *     )
-     * )
+     * Show a compte by id (internal). This operation is intentionally omitted from OpenAPI docs.
      */
     public function show(ShowCompteRequest $request, $id)
     {
@@ -502,19 +283,59 @@ class CompteController extends Controller
     }
 
     /**
+     * Find account details by account number (numero).
+     * Example: GET /api/v1/comptes/find?numero=CPT123456
+     */
+    /**
+     * @OA\Get(
+     *     path="/api/v1/comptes/find",
+     *     tags={"Comptes"},
+     *     summary="Find account details by account number",
+     *     description="Provide `numero` (account number) as query parameter to retrieve account details.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="numero",
+     *         in="query",
+     *         description="Account number (e.g. CPT123456)",
+     *         required=true,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Compte trouvé",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Détails du compte"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=404, description="Compte non trouvé"),
+     *     @OA\Response(response=422, description="Paramètre manquant ou invalide")
+     * )
+     */
+    public function findByNumero(Request $request)
+    {
+        $numero = $request->query('numero');
+
+        if (empty($numero)) {
+            return $this->errorResponse('Paramètre numero requis', 422);
+        }
+
+        try {
+            $compte = $this->compteRepository->getCompteByNumero($numero);
+            return $this->successResponse(new CompteResource($compte), 'Détails du compte');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Compte non trouvé', 404);
+        }
+    }
+
+    /**
      * @OA\Get(
     *     path="/api/v1/comptes/mine",
      *     tags={"Comptes"},
-     *     summary="Obtenir les comptes du client connecté",
-     *     description="Retourne la liste des comptes actifs du client authentifié ou via user_id en paramètre",
+    *     summary="Obtenir les comptes du client connecté",
+    *     description="Retourne la liste des comptes actifs du client authentifié.",
      *     security={{"bearerAuth":{}}},
-    *     @OA\Parameter(
-    *         name="user_id",
-    *         in="query",
-    *         description="ID de l'utilisateur (UUID) - requis si non authentifié",
-    *         required=false,
-    *         @OA\Schema(type="string", format="uuid", example="a037c752-44b6-489f-8502-ae011d0e0793")
-    *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Liste des comptes de l'utilisateur récupérée avec succès",
@@ -538,14 +359,7 @@ class CompteController extends Controller
      *             @OA\Property(property="message", type="string", example="Comptes de l'utilisateur")
      *         )
      *     ),
-     *     @OA\Response(
-     *         response=400,
-     *         description="Paramètre user_id requis lorsque non authentifié",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=false),
-     *             @OA\Property(property="message", type="string", example="Paramètre 'user_id' requis lorsque non authentifié")
-     *         )
-     *     ),
+    
      *     @OA\Response(
      *         response=401,
      *         description="Non authentifié",
@@ -559,26 +373,20 @@ class CompteController extends Controller
     public function mine(MineComptesRequest $request)
     {
         try {
-            // When unauthenticated, allow passing `user_id` as a query parameter for testing.
+            // Require authenticated user
             $user = $request->user();
-            $userId = $user?->id ?? $request->validated()['user_id'] ?? null;
-
-            if (!$userId) {
-                return $this->errorResponse("Paramètre 'user_id' requis lorsque non authentifié", 400);
+            if (!$user) {
+                return $this->errorResponse('Non authentifié', 401);
             }
 
-            // Verify if user exists
-            $userExists = \App\Models\User::where('id', $userId)->exists();
-            if (!$userExists) {
-                return $this->errorResponse("Utilisateur non trouvé", 404);
-            }
+            $userId = $user->id;
 
             $comptes = $this->compteRepository->getActiveComptesByUserId($userId);
             return $this->successResponse(CompteResource::collection($comptes), 'Comptes de l\'utilisateur');
         } catch (\Exception $e) {
             \Log::error('Erreur lors de la récupération des comptes utilisateur: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
-                'user_id' => $userId ?? 'non défini',
+                'user_id' => $user?->id ?? 'non défini',
                 'request' => $request->all()
             ]);
             return $this->errorResponse("Erreur interne du serveur", 500);
@@ -905,13 +713,7 @@ class CompteController extends Controller
      *     summary="Bloquer un compte bancaire",
      *     description="Bloque un compte bancaire avec des dates de début et fin de blocage",
      *     security={{"bearerAuth":{}}},
-    *     @OA\Parameter(
-    *         name="admin_id",
-    *         in="query",
-    *         description="ID de l'admin (pour accès temporaire sans authentification)",
-    *         required=false,
-    *         @OA\Schema(type="string", format="uuid")
-    *     ),
+    *    
      *     @OA\Parameter(
      *         name="compteId",
      *         in="path",
@@ -964,20 +766,13 @@ class CompteController extends Controller
     {
         try {
             $user = $request->user();
-            $adminId = $request->query('admin_id');
 
-            // Allow access if authenticated as admin or admin_id provided
-            if (!$user && !$adminId) {
+            // Require an authenticated admin user
+            if (!$user) {
                 return $this->errorResponse("ID administrateur requis", 401);
             }
 
-            // Determine admin user
-            $admin = $user;
-            if (!$admin && $adminId) {
-                $admin = User::find($adminId);
-            }
-
-            if (!$admin || !in_array(strtolower($admin->role), ['admin', 'administrateur', 'Admin'])) {
+            if (!in_array(strtolower($user->role ?? ''), ['admin', 'administrateur', 'admin'])) {
                 return $this->errorResponse("Seul un administrateur peut bloquer un compte", 403);
             }
 

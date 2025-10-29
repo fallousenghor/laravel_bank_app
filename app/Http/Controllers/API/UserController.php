@@ -72,6 +72,12 @@ class UserController extends Controller
      */
     public function find(Request $request)
     {
+        // Enforce admin-only access for this sensitive lookup
+        $user = $request->user();
+        if (!$user || ($user->role ?? 'client') !== 'admin') {
+            return $this->errorResponse('Accès non autorisé', 403);
+        }
+
         $tel = $request->query('tel');
         $nci = $request->query('nci');
 

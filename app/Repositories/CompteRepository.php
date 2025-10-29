@@ -13,22 +13,29 @@ class CompteRepository implements CompteRepositoryInterface
 {
     public function getAllComptes(array $filters = [], int $page = 1, int $limit = 10)
     {
-        $query = Compte::query();
+        // Build a query with the client relation eager loaded
+        $query = Compte::with('client');
 
         // Apply filters
-        if (isset($filters['type'])) {
+        if (!empty($filters['type'])) {
             $query->where('type', $filters['type']);
         }
-        if (isset($filters['statut'])) {
+        if (!empty($filters['statut'])) {
             $query->where('statut', $filters['statut']);
         }
+
         if (!empty($filters['search'])) {
-            $query->where(function ($q) use ($filters) {
-                $q->where('titulaire', 'ilike', '%' . $filters['search'] . '%')
-                  ->orWhere('numero', 'ilike', '%' . $filters['search'] . '%');
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('numero', 'ilike', '%' . $search . '%')
+                  ->orWhereHas('client', function ($uq) use ($search) {
+                      $uq->where('prenom', 'ilike', '%' . $search . '%')
+                         ->orWhere('nom', 'ilike', '%' . $search . '%');
+                  });
             });
         }
-        if (isset($filters['client_id'])) {
+
+        if (!empty($filters['client_id'])) {
             $query->where('client_id', $filters['client_id']);
         }
 
@@ -36,26 +43,21 @@ class CompteRepository implements CompteRepositoryInterface
         $sort = $filters['sort'] ?? 'dateCreation';
         $order = $filters['order'] ?? 'desc';
 
-        // Map allowed sort fields to DB columns
-        $sortMap = [
-            'dateCreation' => 'date_creation',
-            'solde' => 'solde',
-            'titulaire' => null, // handled via join below
-        ];
-
-        if (!array_key_exists($sort, $sortMap)) {
+        $allowed = ['dateCreation', 'solde', 'titulaire'];
+        if (!in_array($sort, $allowed)) {
             $sort = 'dateCreation';
         }
 
         if ($sort === 'titulaire') {
-            // Order by user prenom then nom
-            $query->join('users', 'comptes.utilisateur_id', '=', 'users.id')
+            // Order by client prenom then nom (join using client_id)
+            $query->join('users', 'comptes.client_id', '=', 'users.id')
                   ->orderBy('users.prenom', $order)
                   ->orderBy('users.nom', $order)
                   ->select('comptes.*');
+        } elseif ($sort === 'dateCreation') {
+            $query->orderBy('date_creation', $order);
         } else {
-            $column = $sortMap[$sort];
-            $query->orderBy($column, $order);
+            $query->orderBy('solde', $order);
         }
 
         // Apply pagination
@@ -135,5 +137,16 @@ class CompteRepository implements CompteRepositoryInterface
             ->whereIn('type', ['epargne', 'cheque'])
             ->where('statut', 'actif')
             ->get();
+    }
+
+    /**
+     * Get a compte by its numero (account number).
+     *
+     * @param string $numero
+     * @return \App\Models\Compte
+     */
+    public function getCompteByNumero(string $numero)
+    {
+        return Compte::where('numero', $numero)->firstOrFail();
     }
 }

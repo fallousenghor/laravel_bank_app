@@ -153,156 +153,6 @@
             }
         },
         "/api/v1/comptes/{id}": {
-            "get": {
-                "tags": [
-                    "Comptes"
-                ],
-                "summary": "Obtenir les détails d'un compte spécifique",
-                "description": "Retourne les détails d'un compte bancaire spécifique avec son utilisateur",
-                "operationId": "73c661e1b184667f1bb194f22d82cb7d",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "ID du compte (UUID)",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Détails du compte récupérés avec succès",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "id": {
-                                                    "type": "string",
-                                                    "format": "uuid",
-                                                    "example": "a02eab71-0ae7-48cf-bc37-92d0493737e1"
-                                                },
-                                                "numeroCompte": {
-                                                    "type": "string",
-                                                    "example": "CPT123456"
-                                                },
-                                                "titulaire": {
-                                                    "type": "string",
-                                                    "example": "Amadou Diallo"
-                                                },
-                                                "type": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "Épargne",
-                                                        "Chèque"
-                                                    ],
-                                                    "example": "Épargne"
-                                                },
-                                                "solde": {
-                                                    "type": "number",
-                                                    "format": "float",
-                                                    "example": 1000.5
-                                                },
-                                                "devise": {
-                                                    "type": "string",
-                                                    "example": "FCFA"
-                                                },
-                                                "statut": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "Actif",
-                                                        "Bloqué",
-                                                        "Fermé"
-                                                    ],
-                                                    "example": "Actif"
-                                                },
-                                                "dateCreation": {
-                                                    "type": "string",
-                                                    "format": "date-time",
-                                                    "example": "2023-10-23T00:00:00Z"
-                                                },
-                                                "metadata": {
-                                                    "properties": {
-                                                        "derniereModification": {
-                                                            "type": "string",
-                                                            "format": "date-time",
-                                                            "example": "2023-06-10T14:30:00Z"
-                                                        },
-                                                        "version": {
-                                                            "type": "integer",
-                                                            "example": 1
-                                                        }
-                                                    },
-                                                    "type": "object"
-                                                }
-                                            },
-                                            "type": "object"
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Détails du compte"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "ID administrateur requis",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "ID administrateur requis"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Compte non trouvé",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Compte non trouvé"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            },
             "delete": {
                 "tags": [
                     "Comptes"
@@ -464,17 +314,6 @@
                                 "desc"
                             ]
                         }
-                    },
-                    {
-                        "name": "admin_id",
-                        "in": "query",
-                        "description": "ID de l'admin (UUID, pour accès temporaire sans authentification)",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid",
-                            "example": "550e8400-e29b-41d4-a716-446655440000"
-                        }
                     }
                 ],
                 "responses": {
@@ -616,7 +455,7 @@
                         }
                     },
                     "401": {
-                        "description": "Non authentifié ou ID administrateur requis",
+                        "description": "Non authentifié",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -627,7 +466,7 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "Authentification requise ou paramètre admin_id"
+                                            "example": "Authentification requise"
                                         }
                                     },
                                     "type": "object"
@@ -663,19 +502,7 @@
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "L'ID admin doit être un UUID valide."
-                                        },
-                                        "errors": {
-                                            "properties": {
-                                                "admin_id": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "string",
-                                                        "example": "L'ID admin doit être un UUID valide."
-                                                    }
-                                                }
-                                            },
-                                            "type": "object"
+                                            "example": "Erreur de validation des paramètres"
                                         }
                                     },
                                     "type": "object"
@@ -915,27 +742,71 @@
                 ]
             }
         },
+        "/api/v1/comptes/find": {
+            "get": {
+                "tags": [
+                    "Comptes"
+                ],
+                "summary": "Find account details by account number",
+                "description": "Provide `numero` (account number) as query parameter to retrieve account details.",
+                "operationId": "a879055a6fe3d8278884e9e14625904d",
+                "parameters": [
+                    {
+                        "name": "numero",
+                        "in": "query",
+                        "description": "Account number (e.g. CPT123456)",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Compte trouvé",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Détails du compte"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Compte non trouvé"
+                    },
+                    "422": {
+                        "description": "Paramètre manquant ou invalide"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/v1/comptes/mine": {
             "get": {
                 "tags": [
                     "Comptes"
                 ],
                 "summary": "Obtenir les comptes du client connecté",
-                "description": "Retourne la liste des comptes actifs du client authentifié ou via user_id en paramètre",
+                "description": "Retourne la liste des comptes actifs du client authentifié.",
                 "operationId": "c7590a97f5879aacdc637cc45fcdd51d",
-                "parameters": [
-                    {
-                        "name": "user_id",
-                        "in": "query",
-                        "description": "ID de l'utilisateur (UUID) - requis si non authentifié",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid",
-                            "example": "a037c752-44b6-489f-8502-ae011d0e0793"
-                        }
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "Liste des comptes de l'utilisateur récupérée avec succès",
@@ -1021,26 +892,6 @@
                                         "message": {
                                             "type": "string",
                                             "example": "Comptes de l'utilisateur"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Paramètre user_id requis lorsque non authentifié",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Paramètre 'user_id' requis lorsque non authentifié"
                                         }
                                     },
                                     "type": "object"
@@ -1298,16 +1149,6 @@
                 "description": "Bloque un compte bancaire avec des dates de début et fin de blocage",
                 "operationId": "461638a5a43ecf56a546e0bf6dfb1d6f",
                 "parameters": [
-                    {
-                        "name": "admin_id",
-                        "in": "query",
-                        "description": "ID de l'admin (pour accès temporaire sans authentification)",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        }
-                    },
                     {
                         "name": "compteId",
                         "in": "path",
