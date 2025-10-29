@@ -6,14 +6,160 @@
         "version": "1.0.0"
     },
     "paths": {
-        "\/senghorfallou\/v1\/comptes\/{id}": {
+        "/api/v1/auth/login": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Login with email and password",
+                "operationId": "0e326ce09f6496b8aa071164115ce2e0",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password"
+                                    },
+                                    "scope": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Returns access and refresh tokens",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "access_token": {
+                                            "type": "string"
+                                        },
+                                        "refresh_token": {
+                                            "type": "string"
+                                        },
+                                        "expires_in": {
+                                            "type": "integer"
+                                        },
+                                        "token_type": {
+                                            "type": "string"
+                                        },
+                                        "user": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/refresh": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Refresh access token",
+                "operationId": "24439620f349c61e54353644309234a4",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "refresh_token"
+                                ],
+                                "properties": {
+                                    "refresh_token": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Returns new access token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "access_token": {
+                                            "type": "string"
+                                        },
+                                        "refresh_token": {
+                                            "type": "string"
+                                        },
+                                        "expires_in": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/logout": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Logout and revoke tokens",
+                "operationId": "9bcd56c32550e9746a1e3549fe19bcab",
+                "responses": {
+                    "200": {
+                        "description": "Logged out",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/comptes/{id}": {
             "get": {
                 "tags": [
                     "Comptes"
                 ],
                 "summary": "Obtenir les détails d'un compte spécifique",
                 "description": "Retourne les détails d'un compte bancaire spécifique avec son utilisateur",
-                "operationId": "34d22281b22a0a3b4b88aa3cc8183779",
+                "operationId": "73c661e1b184667f1bb194f22d82cb7d",
                 "parameters": [
                     {
                         "name": "id",
@@ -30,7 +176,7 @@
                     "200": {
                         "description": "Détails du compte récupérés avec succès",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -113,7 +259,7 @@
                     "401": {
                         "description": "ID administrateur requis",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -133,7 +279,7 @@
                     "404": {
                         "description": "Compte non trouvé",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -163,7 +309,7 @@
                 ],
                 "summary": "Supprimer un compte",
                 "description": "Effectue une suppression douce (soft delete) d'un compte",
-                "operationId": "a892cd9e4993c96d965bb848afa66fa7",
+                "operationId": "bdd4a02770714af8793954b4add8ce0c",
                 "parameters": [
                     {
                         "name": "id",
@@ -180,7 +326,7 @@
                     "200": {
                         "description": "Compte supprimé avec succès",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -226,14 +372,14 @@
                 }
             }
         },
-        "\/senghorfallou\/v1\/comptes": {
+        "/api/v1/comptes": {
             "get": {
                 "tags": [
                     "Comptes"
                 ],
                 "summary": "Lister tous les comptes",
                 "description": "Retourne la liste paginée de tous les comptes bancaires non supprimés",
-                "operationId": "aa1be305e6e07c73871a5f452be73791",
+                "operationId": "03ebbdde72897aa34cb2d14fa567a91e",
                 "parameters": [
                     {
                         "name": "page",
@@ -335,7 +481,7 @@
                     "200": {
                         "description": "Liste des comptes récupérée avec succès",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -446,19 +592,19 @@
                                             "properties": {
                                                 "self": {
                                                     "type": "string",
-                                                    "example": "\/senghorfallou\/v1\/comptes?page=1&limit=10"
+                                                    "example": "/api/v1/comptes?page=1&limit=10"
                                                 },
                                                 "next": {
                                                     "type": "string",
-                                                    "example": "\/senghorfallou\/v1\/comptes?page=2&limit=10"
+                                                    "example": "/api/v1/comptes?page=2&limit=10"
                                                 },
                                                 "first": {
                                                     "type": "string",
-                                                    "example": "\/senghorfallou\/v1\/comptes?page=1&limit=10"
+                                                    "example": "/api/v1/comptes?page=1&limit=10"
                                                 },
                                                 "last": {
                                                     "type": "string",
-                                                    "example": "\/senghorfallou\/v1\/comptes?page=3&limit=10"
+                                                    "example": "/api/v1/comptes?page=3&limit=10"
                                                 }
                                             },
                                             "type": "object"
@@ -472,7 +618,7 @@
                     "401": {
                         "description": "Non authentifié ou ID administrateur requis",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -492,7 +638,7 @@
                     "403": {
                         "description": "Accès non autorisé",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -512,7 +658,7 @@
                     "422": {
                         "description": "Erreur de validation des paramètres",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
@@ -550,11 +696,11 @@
                 ],
                 "summary": "Créer un nouveau compte bancaire",
                 "description": "Crée un nouveau compte bancaire pour un client existant ou nouveau",
-                "operationId": "cb215618a13d4610b6a77feda9613a47",
+                "operationId": "53b33900fc6cb69a015e4fb7160bb19b",
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "application\/json": {
+                        "application/json": {
                             "schema": {
                                 "required": [
                                     "type",
@@ -591,7 +737,7 @@
                                         "properties": {
                                             "id": {
                                                 "type": "integer",
-                                                "example": 1001,
+                                                "example": null,
                                                 "nullable": true
                                             },
                                             "titulaire": {
@@ -629,7 +775,7 @@
                     "201": {
                         "description": "Compte créé avec succès",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -718,7 +864,7 @@
                     "400": {
                         "description": "Données invalides",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -741,7 +887,7 @@
                     "422": {
                         "description": "Erreur de validation",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -769,14 +915,14 @@
                 ]
             }
         },
-        "\/senghorfallou\/v1\/comptes\/mine": {
+        "/api/v1/comptes/mine": {
             "get": {
                 "tags": [
                     "Comptes"
                 ],
                 "summary": "Obtenir les comptes du client connecté",
                 "description": "Retourne la liste des comptes actifs du client authentifié ou via user_id en paramètre",
-                "operationId": "5dd6c4337febc845d974c83f44e38030",
+                "operationId": "c7590a97f5879aacdc637cc45fcdd51d",
                 "parameters": [
                     {
                         "name": "user_id",
@@ -794,7 +940,7 @@
                     "200": {
                         "description": "Liste des comptes de l'utilisateur récupérée avec succès",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -851,7 +997,7 @@
                                                     },
                                                     "motifBlocage": {
                                                         "type": "string",
-                                                        "example": "Aucun",
+                                                        "example": null,
                                                         "nullable": true
                                                     },
                                                     "metadata": {
@@ -885,7 +1031,7 @@
                     "400": {
                         "description": "Paramètre user_id requis lorsque non authentifié",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -905,7 +1051,7 @@
                     "401": {
                         "description": "Non authentifié",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -930,14 +1076,14 @@
                 ]
             }
         },
-        "\/senghorfallou\/v1\/comptes\/{compteId}": {
+        "/api/v1/comptes/{compteId}": {
             "patch": {
                 "tags": [
                     "Comptes"
                 ],
                 "summary": "Mettre à jour les informations du client",
                 "description": "Modifie les informations du client associé à un compte bancaire. Tous les champs sont optionnels mais au moins un champ doit être fourni.",
-                "operationId": "91f4dd47a0bc957d91128f6316e8ee12",
+                "operationId": "13594cfb312cd09eb5c87d757102c358",
                 "parameters": [
                     {
                         "name": "compteId",
@@ -953,7 +1099,7 @@
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "application\/json": {
+                        "application/json": {
                             "schema": {
                                 "properties": {
                                     "titulaire": {
@@ -992,7 +1138,7 @@
                     "200": {
                         "description": "Informations du client mises à jour avec succès",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -1075,7 +1221,7 @@
                     "400": {
                         "description": "Données invalides ou aucun champ fourni",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -1095,7 +1241,7 @@
                     "404": {
                         "description": "Compte non trouvé",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -1115,7 +1261,7 @@
                     "422": {
                         "description": "Erreur de validation",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -1143,14 +1289,14 @@
                 ]
             }
         },
-        "\/senghorfallou\/v1\/comptes\/{compteId}\/bloquer": {
+        "/api/v1/comptes/{compteId}/bloquer": {
             "post": {
                 "tags": [
                     "Comptes"
                 ],
                 "summary": "Bloquer un compte bancaire",
                 "description": "Bloque un compte bancaire avec des dates de début et fin de blocage",
-                "operationId": "464db1395c694e2a59862fc7a8c25540",
+                "operationId": "461638a5a43ecf56a546e0bf6dfb1d6f",
                 "parameters": [
                     {
                         "name": "admin_id",
@@ -1176,7 +1322,7 @@
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "application\/json": {
+                        "application/json": {
                             "schema": {
                                 "required": [
                                     "date_debut_blocage",
@@ -1203,7 +1349,7 @@
                     "200": {
                         "description": "Compte bloqué avec succès",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -1251,7 +1397,7 @@
                     "403": {
                         "description": "Accès non autorisé - Admin requis",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -1268,30 +1414,10 @@
                             }
                         }
                     },
-                    "422": {
-                        "description": "Impossible de bloquer un compte de type 'cheque'",
-                        "content": {
-                            "application\/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Impossible de bloquer un compte de type 'cheque'. Seuls les comptes d'épargne peuvent être bloqués."
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
                     "404": {
                         "description": "Compte non trouvé",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "properties": {
                                         "success": {
@@ -1327,6 +1453,10 @@
         }
     },
     "tags": [
+        {
+            "name": "Auth",
+            "description": "Authentication endpoints"
+        },
         {
             "name": "Comptes",
             "description": "Comptes"

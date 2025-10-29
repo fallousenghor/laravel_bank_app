@@ -18,7 +18,8 @@ class AdminSeeder extends Seeder
             'prenom' => 'System',
             'email' => 'admin@example.com',
             'password' => Hash::make('password123'),
-            'role' => 'Admin'
+            // match enum in users table
+            'role' => 'admin'
         ]);
 }
 }

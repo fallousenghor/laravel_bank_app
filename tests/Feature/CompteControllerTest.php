@@ -17,7 +17,7 @@ class CompteControllerTest extends TestCase
      */
     public function test_index_validation_fails_with_invalid_parameters(): void
     {
-        $response = $this->getJson('/senghorfallou/v1/comptes?page=abc&limit=150&type=invalid&statut=invalid&sort=invalid&order=invalid&admin_id=abc');
+    $response = $this->getJson('/api/v1/comptes?page=abc&limit=150&type=invalid&statut=invalid&sort=invalid&order=invalid&admin_id=abc');
 
         $response->assertStatus(422)
                  ->assertJsonValidationErrors(['page', 'limit', 'type', 'statut', 'sort', 'order', 'admin_id']);
@@ -31,7 +31,7 @@ class CompteControllerTest extends TestCase
         $user = User::factory()->create(['role' => 'admin']);
         $this->actingAs($user, 'api');
 
-        $response = $this->getJson('/senghorfallou/v1/comptes?page=1&limit=10&type=epargne&statut=actif&sort=solde&order=desc&admin_id=1');
+    $response = $this->getJson('/api/v1/comptes?page=1&limit=10&type=epargne&statut=actif&sort=solde&order=desc&admin_id=1');
 
         $response->assertStatus(200);
     }

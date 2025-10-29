@@ -45,8 +45,8 @@ class CompteController extends Controller
     }
 
     /**
-     * @OA\Delete(
-     *     path="/senghorfallou/v1/comptes/{id}",
+    * @OA\Delete(
+    *     path="/api/v1/comptes/{id}",
      *     tags={"Comptes"},
      *     summary="Supprimer un compte",
      *     description="Effectue une suppression douce (soft delete) d'un compte",
@@ -108,8 +108,8 @@ class CompteController extends Controller
     }
 
     /**
-     * @OA\Get(
-     *     path="/senghorfallou/v1/comptes",
+    * @OA\Get(
+    *     path="/api/v1/comptes",
      *     tags={"Comptes"},
      *     summary="Lister tous les comptes",
      *     description="Retourne la liste paginée de tous les comptes bancaires non supprimés",
@@ -199,10 +199,10 @@ class CompteController extends Controller
      *                 @OA\Property(property="hasPrevious", type="boolean", example=false)
      *             ),
      *             @OA\Property(property="links", type="object",
-     *                 @OA\Property(property="self", type="string", example="/senghorfallou/v1/comptes?page=1&limit=10"),
-     *                 @OA\Property(property="next", type="string", example="/senghorfallou/v1/comptes?page=2&limit=10"),
-     *                 @OA\Property(property="first", type="string", example="/senghorfallou/v1/comptes?page=1&limit=10"),
-     *                 @OA\Property(property="last", type="string", example="/senghorfallou/v1/comptes?page=3&limit=10")
+    *                 @OA\Property(property="self", type="string", example="/api/v1/comptes?page=1&limit=10"),
+    *                 @OA\Property(property="next", type="string", example="/api/v1/comptes?page=2&limit=10"),
+    *                 @OA\Property(property="first", type="string", example="/api/v1/comptes?page=1&limit=10"),
+    *                 @OA\Property(property="last", type="string", example="/api/v1/comptes?page=3&limit=10")
      *             )
      *         )
      *     ),
@@ -442,7 +442,7 @@ class CompteController extends Controller
 
     /**
      * @OA\Get(
-     *     path="/senghorfallou/v1/comptes/{id}",
+    *     path="/api/v1/comptes/{id}",
      *     tags={"Comptes"},
      *     summary="Obtenir les détails d'un compte spécifique",
      *     description="Retourne les détails d'un compte bancaire spécifique avec son utilisateur",
@@ -503,7 +503,7 @@ class CompteController extends Controller
 
     /**
      * @OA\Get(
-     *     path="/senghorfallou/v1/comptes/mine",
+    *     path="/api/v1/comptes/mine",
      *     tags={"Comptes"},
      *     summary="Obtenir les comptes du client connecté",
      *     description="Retourne la liste des comptes actifs du client authentifié ou via user_id en paramètre",
@@ -587,7 +587,7 @@ class CompteController extends Controller
 
     /**
      * @OA\Post(
-     *     path="/senghorfallou/v1/comptes",
+    *     path="/api/v1/comptes",
      *     tags={"Comptes"},
      *     summary="Créer un nouveau compte bancaire",
      *     description="Crée un nouveau compte bancaire pour un client existant ou nouveau",
@@ -742,7 +742,7 @@ class CompteController extends Controller
 
     /**
      * @OA\Patch(
-     *     path="/senghorfallou/v1/comptes/{compteId}",
+    *     path="/api/v1/comptes/{compteId}",
      *     tags={"Comptes"},
      *     summary="Mettre à jour les informations du client",
      *     description="Modifie les informations du client associé à un compte bancaire. Tous les champs sont optionnels mais au moins un champ doit être fourni.",
@@ -900,7 +900,7 @@ class CompteController extends Controller
 
     /**
      * @OA\Post(
-     *     path="/senghorfallou/v1/comptes/{compteId}/bloquer",
+    *     path="/api/v1/comptes/{compteId}/bloquer",
      *     tags={"Comptes"},
      *     summary="Bloquer un compte bancaire",
      *     description="Bloque un compte bancaire avec des dates de début et fin de blocage",

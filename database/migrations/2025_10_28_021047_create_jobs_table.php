@@ -7,6 +7,11 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
+     * Disable wrapping this migration in a transaction because some DDL
+     * statements (index creation/order) may fail inside a transaction on Postgres.
+     */
+    public $withinTransaction = false;
+    /**
      * Run the migrations.
      */
     public function up(): void

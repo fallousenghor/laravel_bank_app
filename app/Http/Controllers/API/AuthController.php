@@ -2,93 +2,257 @@
 
 namespace App\Http\Controllers\API;
 
-use App\Models\User;
-use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http as HttpClient;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Cookie;
+use App\Models\User;
 
 class AuthController extends Controller
 {
-    public function register(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation error',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
-
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'token' => $token,
-                'token_type' => 'Bearer',
-                'user' => $user
-            ],
-            'message' => 'Inscription réussie'
-        ]);
-    }
-
+    /**
+    * @OA\Tag(
+    *     name="Auth",
+    *     description="Authentication endpoints"
+    * )
+    *
+    * @OA\Post(
+    *     path="/api/v1/auth/login",
+    *     tags={"Auth"},
+    *     summary="Login with email and password",
+    *     @OA\RequestBody(
+    *         required=true,
+    *         @OA\JsonContent(
+    *             required={"email","password"},
+    *             @OA\Property(property="email", type="string", format="email"),
+    *             @OA\Property(property="password", type="string", format="password"),
+    *             @OA\Property(property="scope", type="string")
+    *         )
+    *     ),
+    *     @OA\Response(
+    *         response=200,
+    *         description="Returns access and refresh tokens",
+    *         @OA\JsonContent(
+    *             @OA\Property(property="access_token", type="string"),
+    *             @OA\Property(property="refresh_token", type="string"),
+    *             @OA\Property(property="expires_in", type="integer"),
+    *             @OA\Property(property="token_type", type="string"),
+    *             @OA\Property(property="user", type="object")
+    *         )
+    *     )
+    * )
+     * Perform login and return access + refresh tokens (using Passport password grant).
+     */
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
-            'password' => 'required',
+            'email' => ['required', 'email'],
+            'password' => ['required'],
+            'scope' => ['sometimes', 'nullable', 'string'],
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation error',
-                'errors' => $validator->errors()
-            ], 422);
+            return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Email ou mot de passe incorrect'
-            ], 401);
+        $credentials = $request->only('email', 'password');
+
+        if (!Auth::attempt($credentials)) {
+            return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
-        $user = User::where('email', $request->email)->firstOrFail();
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $user = Auth::user();
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'token' => $token,
-                'token_type' => 'Bearer',
-                'user' => $user
-            ],
-            'message' => 'Connexion réussie'
-        ]);
+        // Prepare password grant request to Passport /oauth/token
+        $clientId = env('PASSPORT_PASSWORD_CLIENT_ID');
+        $clientSecret = env('PASSPORT_PASSWORD_CLIENT_SECRET');
+
+        if (!$clientId || !$clientSecret) {
+            return response()->json(['message' => 'OAuth client credentials are not configured. Run "php artisan passport:install" and set PASSPORT_PASSWORD_CLIENT_ID/PASSPORT_PASSWORD_CLIENT_SECRET in .env'], 500);
+        }
+
+        $scope = $request->input('scope', '*');
+
+        // Dispatch internal request to Passport token endpoint to avoid external HTTP timeout
+        $tokenRequest = \Illuminate\Http\Request::create('/oauth/token', 'POST', [
+            'grant_type' => 'password',
+            'client_id' => $clientId,
+            'client_secret' => $clientSecret,
+            'username' => $request->input('email'),
+            'password' => $request->input('password'),
+            'scope' => $scope,
+        ], [], [], ['CONTENT_TYPE' => 'application/x-www-form-urlencoded']);
+
+        $tokenResponse = app()->handle($tokenRequest);
+
+        $status = $tokenResponse->getStatusCode();
+        $data = json_decode($tokenResponse->getContent(), true);
+
+        if ($status >= 400) {
+                // If the authorization server doesn't support password grant (common on some Passport setups),
+                // fall back to issuing a personal access token using Passport's PersonalAccessTokenFactory.
+                if (isset($data['error']) && $data['error'] === 'unsupported_grant_type') {
+                    // Create a personal access token as a fallback
+                    $abilities = [];
+                    if ($scope && $scope !== '*') {
+                        $abilities = array_filter(explode(' ', $scope));
+                    }
+
+                    $tokenResult = $user->createToken('fallback_token', $abilities);
+                    $personalAccessToken = $tokenResult->accessToken ?? null;
+
+                    $data = [
+                        'access_token' => $personalAccessToken,
+                        'token_type' => 'Bearer',
+                        'expires_in' => 60 * 24 * 30, // 30 days assumed for personal tokens
+                        'user' => $user->makeHidden(['password', 'remember_token']),
+                        'note' => 'Issued personal access token as password grant is not supported on this server',
+                    ];
+
+                    // Store access token in cookie
+                    $accessCookie = cookie('access_token', $personalAccessToken, 60 * 24 * 30, '/', null, config('app.env') !== 'local', true, false, 'Strict');
+
+                    return response()->json($data)->withCookie($accessCookie);
+                }
+
+                return response()->json(['message' => 'Failed to issue token', 'details' => $data], $status);
+        }
+
+        // Attach user info to the response so clients can know the role/scopes without
+        // decoding the token. (We also keep the raw tokens in the response body.)
+        $data['user'] = $user->makeHidden(['password', 'remember_token']);
+
+        // Store access token in an HTTP-only secure cookie
+        $accessToken = $data['access_token'] ?? null;
+        $accessTtl = isset($data['expires_in']) ? intval($data['expires_in'] / 60) : 60; // minutes
+
+        $accessCookie = cookie('access_token', $accessToken, $accessTtl, '/', null, config('app.env') !== 'local', true, false, 'Strict');
+
+        // Optionally store refresh token in a secure, http-only cookie as well
+        $refreshToken = $data['refresh_token'] ?? null;
+        $refreshTtl = 60 * 24 * 30; // 30 days in minutes
+        $refreshCookie = $refreshToken ? cookie('refresh_token', $refreshToken, $refreshTtl, '/', null, config('app.env') !== 'local', true, false, 'Strict') : null;
+
+        $responseBuilder = response()->json($data)->withCookie($accessCookie);
+        if ($refreshCookie) {
+            $responseBuilder = $responseBuilder->withCookie($refreshCookie);
+        }
+
+        return $responseBuilder;
     }
 
+    /**
+    * @OA\Post(
+    *     path="/api/v1/auth/refresh",
+    *     tags={"Auth"},
+    *     summary="Refresh access token",
+    *     @OA\RequestBody(
+    *         required=true,
+    *         @OA\JsonContent(
+    *             required={"refresh_token"},
+    *             @OA\Property(property="refresh_token", type="string")
+    *         )
+    *     ),
+    *     @OA\Response(
+    *         response=200,
+    *         description="Returns new access token",
+    *         @OA\JsonContent(
+    *             @OA\Property(property="access_token", type="string"),
+    *             @OA\Property(property="refresh_token", type="string"),
+    *             @OA\Property(property="expires_in", type="integer")
+    *         )
+    *     )
+    * )
+     * Refresh the access token using a refresh token.
+     */
+    public function refresh(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'refresh_token' => ['required'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $clientId = env('PASSPORT_PASSWORD_CLIENT_ID');
+        $clientSecret = env('PASSPORT_PASSWORD_CLIENT_SECRET');
+
+        // Use internal dispatch to refresh token
+        $refreshRequest = \Illuminate\Http\Request::create('/oauth/token', 'POST', [
+            'grant_type' => 'refresh_token',
+            'refresh_token' => $request->input('refresh_token'),
+            'client_id' => $clientId,
+            'client_secret' => $clientSecret,
+        ], [], [], ['CONTENT_TYPE' => 'application/x-www-form-urlencoded']);
+
+        $refreshResponse = app()->handle($refreshRequest);
+        $status = $refreshResponse->getStatusCode();
+        $data = json_decode($refreshResponse->getContent(), true);
+
+        if ($status >= 400) {
+            return response()->json(['message' => 'Failed to refresh token', 'details' => $data], $status);
+        }
+
+        // Attach user info to refreshed response if possible
+        $user = $request->user();
+        if ($user) {
+            $data['user'] = $user->makeHidden(['password', 'remember_token']);
+        }
+
+        $accessToken = $data['access_token'] ?? null;
+        $accessTtl = isset($data['expires_in']) ? intval($data['expires_in'] / 60) : 60; // minutes
+        $accessCookie = cookie('access_token', $accessToken, $accessTtl, '/', null, config('app.env') !== 'local', true, false, 'Strict');
+
+        // If refresh_token returned, update refresh cookie as well
+        $refreshToken = $data['refresh_token'] ?? null;
+        $refreshCookie = $refreshToken ? cookie('refresh_token', $refreshToken, 60 * 24 * 30, '/', null, config('app.env') !== 'local', true, false, 'Strict') : null;
+
+        $responseBuilder = response()->json($data)->withCookie($accessCookie);
+        if ($refreshCookie) {
+            $responseBuilder = $responseBuilder->withCookie($refreshCookie);
+        }
+
+        return $responseBuilder;
+    }
+
+    /**
+    * @OA\Post(
+    *     path="/api/v1/auth/logout",
+    *     tags={"Auth"},
+    *     summary="Logout and revoke tokens",
+    *     security={{"passport":{}}},
+    *     @OA\Response(
+    *         response=200,
+    *         description="Logged out",
+    *         @OA\JsonContent(
+    *             @OA\Property(property="message", type="string")
+    *         )
+    *     )
+    * )
+     * Logout - revoke tokens for the current user.
+     */
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $user = $request->user();
+        if ($user) {
+            // Revoke current access token
+            try {
+                $token = $user->token();
+                if ($token) {
+                    $token->revoke();
+                }
+            } catch (\Throwable $e) {
+                // Some token implementations may differ; ignore revoke failures here
+            }
+        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Déconnexion réussie'
-        ]);
+    // Remove cookies by setting expired cookies
+    $expiredAccess = cookie('access_token', '', -60);
+    $expiredRefresh = cookie('refresh_token', '', -60);
+
+    return response()->json(['message' => 'Logged out'])->withCookie($expiredAccess)->withCookie($expiredRefresh);
     }
 }

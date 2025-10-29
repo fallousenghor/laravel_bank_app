@@ -1,4 +1,4 @@
-FROM php:8.2-fpm
+FROM php:8.4-fpm
 
 # Arguments définis dans docker-compose.yml
 ARG user=laravel
@@ -41,6 +41,10 @@ COPY . .
 
 # Copier les permissions du projet
 COPY --chown=$user:$user . .
+
+# Fix git safe directory and installer dependencies
+# Add safe.directory so composer/git won't fail with 'detected dubious ownership'
+RUN git config --global --add safe.directory /var/www/html || true
 
 # Installer les dépendances du projet
 RUN composer install --no-interaction --no-dev --optimize-autoloader
