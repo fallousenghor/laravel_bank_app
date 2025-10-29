@@ -1441,6 +1441,72 @@
                     }
                 ]
             }
+        },
+        "/api/v1/users/find": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Find a user by telephone or NCI",
+                "description": "Provide either `tel` (telephone) or `nci` as query parameter to retrieve a single user.",
+                "operationId": "29a8e4e04bdd6853317e873dd04f0a09",
+                "parameters": [
+                    {
+                        "name": "tel",
+                        "in": "query",
+                        "description": "Telephone number of the user (e.g. +111111111)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "nci",
+                        "in": "query",
+                        "description": "National identifier (NCI) of the user",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "User found"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found"
+                    },
+                    "422": {
+                        "description": "Validation error - missing parameters"
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -1460,6 +1526,10 @@
         {
             "name": "Comptes",
             "description": "Comptes"
+        },
+        {
+            "name": "Users",
+            "description": "Users"
         }
     ]
 }

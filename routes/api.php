@@ -18,6 +18,8 @@ Route::group(['prefix' => 'v1'], function () {
 
     Route::get('/users', [UserController::class, 'index']);
     Route::get('/users/{id}', [UserController::class, 'show']);
+    // Find user by telephone or NCI (single endpoint)
+    Route::get('/users/find', [UserController::class, 'find']);
 
     // Authentication endpoints
     Route::post('auth/login', [AuthController::class, 'login']);
