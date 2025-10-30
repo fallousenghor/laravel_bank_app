@@ -8,6 +8,8 @@ ARG uid=1000
 RUN apt-get update && apt-get install -y \
     git \
     curl \
+    nginx \
+    gettext-base \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
@@ -68,14 +70,17 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 # Changer vers l'utilisateur www-data pour php-fpm
 # Copier le script d'entrypoint qui exécutera migrations / seeders au démarrage
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh && chown www-data:www-data /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh && chown root:root /usr/local/bin/docker-entrypoint.sh
 
-# Changer vers l'utilisateur www-data pour php-fpm
-USER www-data
+# Copy nginx template; will be rendered at container start to bind to $PORT
+COPY docker/nginx/app.conf.template /etc/nginx/conf.d/app.conf.template
 
-# Exécuter le script d'entrypoint (s'exécutera avec l'utilisateur www-data)
+# Expose the port we will bind to by default (Render will supply PORT env var);
+# we use 10000 as a convenient default but the container will respect $PORT at runtime.
+EXPOSE 10000
+
+# Entrypoint will run migrations then start php-fpm + nginx (nginx in foreground)
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
-# Start the Laravel built-in server so Render can detect the HTTP port
-EXPOSE 8000
-CMD ["sh", "-lc", "php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"]
+# Default command is to tail nginx logs if entrypoint doesn't exec (safety)
+CMD ["nginx", "-g", "daemon off;"]

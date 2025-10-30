@@ -1,56 +1,42 @@
+# Render manifest for deploying this Laravel app with Docker
+# - Adapt the 'name', 'branch' and 'region' fields to your setup before applying.
+# - Do NOT put secrets in this file; set them in the Render dashboard or using the CLI.
+
 services:
   - type: web
-    name: fallou-senghor-bank
+    name: laravel-bank-app
     env: docker
-    plan: free
-    autoDeploy: true
-    disks:
-      - name: data
-        mountPath: /var/www/html/storage
-        sizeGB: 1
-
+    branch: production
+    plan: starter
+    region: oregon
+    diskGb: 1
+    dockerfilePath: Dockerfile
+    buildCommand: null
+    startCommand: null
     envVars:
-      - key: APP_NAME
-        value: "Bank App"
+      # Runtime configuration (fill via Render dashboard or CLI)
+      - key: PORT
+        value: "10000"
       - key: APP_ENV
-        value: production
+        value: "production"
       - key: APP_DEBUG
         value: "false"
-      - key: APP_KEY
-        sync: false
-      - key: APP_URL
-        value: "https://laravel-bank-app.onrender.com"
-      - key: L5_SWAGGER_USE_HTTPS
-        value: "true"
-      - key: LOG_CHANNEL
-        value: stderr
-      - key: LOG_LEVEL
-        value: error
-      - key: DB_CONNECTION
-        value: pgsql
-      - key: DB_HOST
-        value: ep-steep-feather-adccnsal-pooler.c-2.us-east-1.aws.neon.tech
-      - key: DB_PORT
-        value: "5432"
-      - key: DB_DATABASE
-        value: neondb
-      - key: DB_USERNAME
-        value: neondb_owner
-      - key: DB_PASSWORD
-        sync: false
-      - key: DB_SSLMODE
-        value: require
-      - key: CACHE_DRIVER
-        value: file
-      - key: SESSION_DRIVER
-        value: file
-      - key: SESSION_LIFETIME
-        value: "120"
-      - key: FILESYSTEM_DISK
-        value: local
-      - key: PASSPORT_PASSWORD_CLIENT_ID
-        value: "3"
-      - key: PASSPORT_PASSWORD_CLIENT_SECRET
-        value: "jnwOI8ZoTtjnRLP8ol8OkR1crGBxRbeD9DFX1K7z"
-    healthCheckPath: /api/health
+      - key: RUN_SEEDERS
+        value: "false"
+      - key: MAX_RETRIES
+        value: "10"
 
+# Optional managed Postgres that Render can provision. If you create it via Render,
+# fill the DB_* envVars above in the dashboard (do not store passwords here).
+databases:
+  - name: laravel-db
+    type: postgresql
+    plan: starter
+
+# Recommended environment variables to set in the Render dashboard (examples of keys):
+# APP_KEY, DB_CONNECTION, DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD,
+# CACHE_DRIVER, SESSION_DRIVER, QUEUE_CONNECTION, MAIL_*
+
+# Notes:
+# - After pushing this manifest, go to Render dashboard to set secrets like APP_KEY,
+#   DB_USERNAME, DB_PASSWORD, etc. The managed DB's connection details will be shown in the UI.

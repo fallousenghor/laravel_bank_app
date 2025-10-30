@@ -1,0 +1,15 @@
+vendor
+node_modules
+.git
+.env
+.env.local
+.env.*.backup
+storage/*.key
+storage/oauth-private.key
+storage/oauth-public.key
+storage/framework/cache/data
+.idea
+.vscode
+tests
+.github
+README.md
