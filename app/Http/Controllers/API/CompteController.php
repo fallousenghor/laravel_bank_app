@@ -50,28 +50,12 @@ class CompteController extends Controller
      */
     public function destroy($id)
     {
-        try {
-            $compte = $this->compteRepository->getCompteById($id);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Compte non trouvé', 404);
-        }
-
-        // Policy-based authorization: only admin can delete
-        try {
-            $this->authorize('delete', $compte);
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        $user = request()->user();
+        if (!$user || $user->role !== 'admin') {
             return $this->errorResponse('Accès non autorisé', 403);
         }
 
-        // Soft-delete using Eloquent (Compte model uses SoftDeletes)
-        try {
-            $compte->delete();
-        } catch (\Exception $e) {
-            \Log::error('Erreur lors de la suppression du compte: ' . $e->getMessage());
-            return $this->errorResponse('Erreur lors de la suppression du compte', 500);
-        }
-
-        return $this->successResponse(['success' => true], 'Compte fermé (soft-deleted) avec succès');
+        return $this->errorResponse('Opération non implémentée', 501);
     }
 
     /**
@@ -277,51 +261,5 @@ class CompteController extends Controller
             \Log::error('Erreur lors de la création du compte: ' . $e->getMessage());
             return $this->errorResponse("Erreur lors de la création du compte", 500);
         }
-    }
-
-    /**
-     * Bloquer un compte (opération réservée aux administrateurs).
-     * Seuls les comptes de type 'epargne' peuvent être bloqués.
-     *
-     * @OA\Post(
-     *     path="/api/v1/comptes/{compteId}/bloquer",
-     *     tags={"Comptes"},
-     *     summary="Bloquer un compte",
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="compteId", in="path", required=true, @OA\Schema(type="string", format="uuid")),
-     *     @OA\Response(response=200, description="Compte bloqué avec succès"),
-     *     @OA\Response(response=401, description="Non authentifié"),
-     *     @OA\Response(response=403, description="Accès non autorisé"),
-     *     @OA\Response(response=404, description="Compte non trouvé"),
-     *     @OA\Response(response=422, description="Action non autorisée pour ce type de compte")
-     * )
-     */
-    public function bloquer(BloquerCompteRequest $request, $compteId)
-    {
-        try {
-            $compte = $this->compteRepository->getCompteById($compteId);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Compte non trouvé', 404);
-        }
-
-        // Policy-based authorization: only admin can block
-        try {
-            $this->authorize('block', $compte);
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
-            return $this->errorResponse('Accès non autorisé', 403);
-        }
-
-        // Business rule: only 'epargne' accounts are blockable in this flow
-        if (isset($compte->type) && strtolower($compte->type) !== 'epargne') {
-            return $this->errorResponse('Seuls les comptes de type epargne peuvent être bloqués', 422);
-        }
-
-        $compte->statut = 'bloque';
-        if (Schema::hasColumn('comptes', 'date_bloque')) {
-            $compte->date_bloque = now();
-        }
-        $compte->save();
-
-        return $this->successResponse(new CompteResource($compte), 'Compte bloqué avec succès');
     }
 }
