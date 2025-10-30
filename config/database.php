@@ -82,6 +82,9 @@ return [
             'schema' => 'public',
             'sslmode' => 'require',
             'timezone' => 'UTC',
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
+                PDO::ATTR_EMULATE_PREPARES => true,
+            ]) : [],
         ],
 
         'archive' => [

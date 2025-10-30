@@ -18,7 +18,9 @@ class AuthSeeder extends Seeder
                 'nom' => 'User',
                 'telephone' => '+000000000',
                 'adresse' => 'Headquarters',
-                'password' => Hash::make('password'),
+                // The User model casts 'password' => 'hashed', so provide the
+                // plain password here and let the model hash it once.
+                'password' => 'password',
                 'role' => 'admin',
             ]
         );

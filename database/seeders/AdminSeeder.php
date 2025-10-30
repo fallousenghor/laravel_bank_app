@@ -13,13 +13,16 @@ class AdminSeeder extends Seeder
      */
     public function run(): void
     {
-        User::create([
+        // Use updateOrCreate so rerunning the seeder fixes the admin password if the user exists.
+        // The User model casts 'password' => 'hashed', so provide the plain password here and let the model hash it once.
+        User::updateOrCreate([
+            'email' => 'admin@example.com'
+        ], [
             'nom' => 'Admin',
             'prenom' => 'System',
-            'email' => 'admin@example.com',
-            'password' => Hash::make('password123'),
+            'password' => 'password123',
             // match enum in users table
             'role' => 'admin'
         ]);
-}
+    }
 }

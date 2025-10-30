@@ -38,8 +38,7 @@ class AuthController extends Controller
     *             @OA\Property(property="access_token", type="string"),
     *             @OA\Property(property="refresh_token", type="string"),
     *             @OA\Property(property="expires_in", type="integer"),
-    *             @OA\Property(property="token_type", type="string"),
-    *             @OA\Property(property="user", type="object")
+    *             @OA\Property(property="token_type", type="string")
     *         )
     *     )
     * )
@@ -107,7 +106,6 @@ class AuthController extends Controller
                         'access_token' => $personalAccessToken,
                         'token_type' => 'Bearer',
                         'expires_in' => 60 * 24 * 30, // 30 days assumed for personal tokens
-                        'user' => $user->makeHidden(['password', 'remember_token']),
                         'note' => 'Issued personal access token as password grant is not supported on this server',
                     ];
 
@@ -120,9 +118,7 @@ class AuthController extends Controller
                 return response()->json(['message' => 'Failed to issue token', 'details' => $data], $status);
         }
 
-        // Attach user info to the response so clients can know the role/scopes without
-        // decoding the token. (We also keep the raw tokens in the response body.)
-        $data['user'] = $user->makeHidden(['password', 'remember_token']);
+    // Do not include full user information in the token response to keep payload minimal.
 
         // Store access token in an HTTP-only secure cookie
         $accessToken = $data['access_token'] ?? null;
@@ -196,11 +192,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Failed to refresh token', 'details' => $data], $status);
         }
 
-        // Attach user info to refreshed response if possible
-        $user = $request->user();
-        if ($user) {
-            $data['user'] = $user->makeHidden(['password', 'remember_token']);
-        }
+        // Do not attach user information to refresh responses — keep the payload minimal.
 
         $accessToken = $data['access_token'] ?? null;
         $accessTtl = isset($data['expires_in']) ? intval($data['expires_in'] / 60) : 60; // minutes

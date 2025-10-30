@@ -11,11 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('oauth_personal_access_clients', function (Blueprint $table) {
-            $table->bigIncrements('id');
-            $table->unsignedBigInteger('client_id');
-            $table->timestamps();
-        });
+        // No-op: avoid creating this table when the vendor Passport migration
+        // already provides it. This prevents duplicate-create errors in mixed
+        // environments.
+        return;
     }
 
     /**

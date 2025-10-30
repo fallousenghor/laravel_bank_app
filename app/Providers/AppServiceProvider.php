@@ -22,6 +22,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(UserRepositoryInterface::class, UserRepository::class);
         $this->app->bind(CompteRepositoryInterface::class, CompteRepository::class);
         $this->app->bind(TransactionRepositoryInterface::class, TransactionRepository::class);
+        // Override Passport's TokenRepository with a custom implementation that uses raw SQL
+        // to avoid prepared-statement type mismatch issues with some Postgres poolers.
+        $this->app->bind(\Laravel\Passport\TokenRepository::class, \App\Overrides\TokenRepository::class);
     }
 
     /**

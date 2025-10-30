@@ -6,6 +6,8 @@ namespace App\Providers;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Laravel\Passport\Passport;
 use Illuminate\Support\Carbon;
+use App\Models\Compte;
+use App\Policies\ComptePolicy;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -15,7 +17,7 @@ class AuthServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     protected $policies = [
-        //
+        'App\\Models\\Compte' => 'App\\Policies\\ComptePolicy',
     ];
 
     /**
