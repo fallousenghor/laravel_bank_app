@@ -89,8 +89,14 @@ else
 fi
 
 echo "[entrypoint] Starting php-fpm..."
-# Start php-fpm (daemonize) so nginx can connect to it
-php-fpm || true
+# Start php-fpm in daemon mode so the entrypoint script continues and can start nginx.
+# Use -D if supported; otherwise fall back to backgrounding the process.
+if php-fpm -D 2>/var/log/php-fpm-start.log; then
+  echo "[entrypoint] php-fpm started (daemonized)"
+else
+  echo "[entrypoint] php-fpm -D failed or unsupported; falling back to background &"
+  php-fpm >/var/log/php-fpm-start.log 2>&1 &
+fi
 
 # Give php-fpm a short moment to come up and then show active listeners/processes
 sleep 0.5
