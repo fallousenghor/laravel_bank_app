@@ -106,8 +106,49 @@ class AuthController extends Controller
 
         $status = $tokenResponse->getStatusCode();
         $data = json_decode($tokenResponse->getContent(), true);
-
+        // Log token endpoint response for debugging if it failed
         if ($status >= 400) {
+            try {
+                \Log::error('Passport token endpoint returned error', ['status' => $status, 'body' => $tokenResponse->getContent()]);
+            } catch (\Throwable $e) {
+                // ignore logging failures
+            }
+
+            // If client credentials from .env appear to be invalid, try to fallback
+            // to reading the password client from the database and retry once.
+            $retryWithDbClient = false;
+            if (is_array($data) && isset($data['error']) && in_array($data['error'], ['invalid_client', 'invalid_grant', 'unauthorized_client'])) {
+                $retryWithDbClient = true;
+            }
+
+            if ($retryWithDbClient) {
+                try {
+                    $dbClient = \DB::table('oauth_clients')->where('password_client', 1)->first();
+                    if ($dbClient && !empty($dbClient->id) && !empty($dbClient->secret)) {
+                        \Log::warning('Retrying token request using oauth client credentials from database.');
+                        $clientId = $dbClient->id;
+                        $clientSecret = $dbClient->secret;
+
+                        $tokenRequestRetry = \Illuminate\Http\Request::create('/oauth/token', 'POST', [
+                            'grant_type' => 'password',
+                            'client_id' => $clientId,
+                            'client_secret' => $clientSecret,
+                            'username' => $request->input('email'),
+                            'password' => $request->input('password'),
+                            'scope' => $scope,
+                        ], [], [], ['CONTENT_TYPE' => 'application/x-www-form-urlencoded']);
+
+                        $tokenResponse = app()->handle($tokenRequestRetry);
+                        $status = $tokenResponse->getStatusCode();
+                        $data = json_decode($tokenResponse->getContent(), true);
+                        if ($status < 400) {
+                            \Log::info('Token request retry succeeded using DB client.');
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    \Log::error('Failed retrying token request with DB client', ['error' => $e->getMessage()]);
+                }
+            }
                 // If the authorization server doesn't support password grant (common on some Passport setups),
                 // fall back to issuing a personal access token using Passport's PersonalAccessTokenFactory.
                 if (isset($data['error']) && $data['error'] === 'unsupported_grant_type') {
