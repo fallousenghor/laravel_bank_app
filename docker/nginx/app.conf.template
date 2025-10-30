@@ -1,5 +1,6 @@
 server {
-    listen ${PORT};
+    listen 0.0.0.0:${PORT};
+    listen [::]:${PORT};
     server_name _;
     root /var/www/html/public;
 

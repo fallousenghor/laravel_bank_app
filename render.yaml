@@ -23,6 +23,8 @@ services:
         value: "false"
       - key: RUN_SEEDERS
         value: "false"
+      - key: MIGRATE_ON_STARTUP
+        value: "false"
       - key: MAX_RETRIES
         value: "10"
 

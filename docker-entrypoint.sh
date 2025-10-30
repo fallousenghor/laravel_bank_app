@@ -39,19 +39,25 @@ if [ "${DB_CONNECTION:-}" != "pgsql" ]; then
   fi
 fi
 
-# Retry migrations a few times in case DB is not yet ready (common in cloud deploys)
-MAX_RETRIES=${MAX_RETRIES:-10}
-SLEEP_SECONDS=${SLEEP_SECONDS:-5}
-attempt=1
-until php artisan migrate --force; do
-  echo "[entrypoint] Migration attempt ${attempt} failed. Waiting ${SLEEP_SECONDS}s before retry..."
-  attempt=$((attempt+1))
-  if [ ${attempt} -gt ${MAX_RETRIES} ]; then
-    echo "[entrypoint] Migrations failed after ${MAX_RETRIES} attempts. Continuing; check logs."
-    break
-  fi
-  sleep ${SLEEP_SECONDS}
-done
+# Run migrations only when explicitly enabled to avoid duplicate-table errors
+# In many cloud setups the DB may already contain the schema; set MIGRATE_ON_STARTUP=true
+# to run migrations automatically. Default is false.
+if [ "${MIGRATE_ON_STARTUP:-false}" = "true" ]; then
+  MAX_RETRIES=${MAX_RETRIES:-10}
+  SLEEP_SECONDS=${SLEEP_SECONDS:-5}
+  attempt=1
+  until php artisan migrate --force; do
+    echo "[entrypoint] Migration attempt ${attempt} failed. Waiting ${SLEEP_SECONDS}s before retry..."
+    attempt=$((attempt+1))
+    if [ ${attempt} -gt ${MAX_RETRIES} ]; then
+      echo "[entrypoint] Migrations failed after ${MAX_RETRIES} attempts. Continuing; check logs."
+      break
+    fi
+    sleep ${SLEEP_SECONDS}
+  done
+else
+  echo "[entrypoint] MIGRATE_ON_STARTUP not enabled; skipping automatic migrations. Set MIGRATE_ON_STARTUP=true to enable."
+fi
 
 # Optional seeders
 if [ "${RUN_SEEDERS:-false}" = "true" ]; then
