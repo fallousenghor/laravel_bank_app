@@ -28,6 +28,31 @@ Route::get('/health/passport-client', function () {
     }
 });
 
+// Temporary debug route to inspect Passport setup in production.
+// Protected: requires header 'X-Debug-Key' to match env('DEBUG_ROUTE_KEY').
+// Do NOT enable DEBUG_ROUTE_KEY with a public value; remove this route after debugging.
+Route::get('/debug/passport-info', function (\Illuminate\Http\Request $request) {
+    $debugKey = env('DEBUG_ROUTE_KEY');
+    if (! $debugKey || $request->header('X-Debug-Key') !== $debugKey) {
+        return response()->json(['error' => 'unauthorized'], 403);
+    }
+
+    try {
+        $row = DB::table('oauth_clients')->where('password_client', 1)->first();
+        return response()->json([
+            'password_client_exists' => (bool) $row,
+            'client_id' => $row->id ?? null,
+            'oauth_private_key' => file_exists(storage_path('oauth-private.key')) ? 'exists' : 'missing',
+            'oauth_public_key' => file_exists(storage_path('oauth-public.key')) ? 'exists' : 'missing',
+            'env_passport_id' => env('PASSPORT_PASSWORD_CLIENT_ID') ?: null,
+            'env_passport_secret_set' => env('PASSPORT_PASSWORD_CLIENT_SECRET') ? true : false,
+            'app_env' => config('app.env'),
+        ], 200);
+    } catch (\Throwable $e) {
+        return response()->json(['error' => 'debug_failed', 'message' => $e->getMessage()], 500);
+    }
+});
+
 Route::group(['prefix' => 'v1'], function () {
 
     Route::get('/users', [UserController::class, 'index']);
