@@ -79,10 +79,13 @@ php artisan view:cache || true
 PORT=${PORT:-10000}
 echo "[entrypoint] Preparing nginx configuration to listen on ${PORT}"
 
-# Render nginx conf from template using envsubst (PORT must be exported)
+# Render nginx conf from template using envsubst but only substitute the PORT
+# variable. The template contains nginx variables like $uri and $query_string which
+# must NOT be expanded by envsubst. By passing '${PORT}' we limit substitution
+# to the PORT variable only.
 export PORT
 if [ -f /etc/nginx/conf.d/app.conf.template ]; then
-  envsubst < /etc/nginx/conf.d/app.conf.template > /etc/nginx/conf.d/default.conf
+  envsubst '${PORT}' < /etc/nginx/conf.d/app.conf.template > /etc/nginx/conf.d/default.conf
   echo "[entrypoint] Wrote /etc/nginx/conf.d/default.conf"
 else
   echo "[entrypoint] WARNING: nginx template not found; using default nginx config"
