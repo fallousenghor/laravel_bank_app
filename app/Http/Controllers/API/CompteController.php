@@ -261,6 +261,9 @@ class CompteController extends Controller
             // Delegate query building to repository (which will handle relations and sorting)
             $comptes = $this->compteRepository->getAllComptes($filters, $page, $limit);
 
+            // Return a standardized paginated response
+            return $this->paginatedResponse($comptes, 'Liste des comptes récupérée avec succès', 200);
+
         } catch (\Exception $e) {
             \Log::error('Erreur lors de la récupération des comptes: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),

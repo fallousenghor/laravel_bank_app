@@ -10,7 +10,13 @@ cd /var/www/html || exit 1
 
 # Run migrations and seeders if artisan exists
 if [ -f artisan ]; then
-  echo "[entrypoint] Running migrations and seeders (if needed)..."
+  echo "[entrypoint] Entrypoint detected artisan. Evaluating whether to run migrations..."
+
+  # In production, avoid running migrations automatically unless explicitly enabled
+  if [ "${APP_ENV:-}" = "production" ] && [ "${RUN_MIGRATIONS:-}" != "true" ]; then
+    echo "[entrypoint] APP_ENV=production and RUN_MIGRATIONS!=true -> skipping automatic migrations. Set RUN_MIGRATIONS=true to enable."
+  else
+    echo "[entrypoint] Running migrations and seeders (if needed)..."
   # Print DB env and available PDO drivers for debugging
   echo "[entrypoint] DB_CONNECTION=${DB_CONNECTION:-}"
   echo "[entrypoint] DB_HOST=${DB_HOST:-}"
@@ -57,6 +63,7 @@ if [ -f artisan ]; then
   php artisan config:cache || true
   php artisan route:cache || true
   php artisan view:cache || true
+  fi
 fi
 
 # Exec the CMD from the Dockerfile (artisan serve)
