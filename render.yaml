@@ -49,5 +49,4 @@ services:
       - key: FILESYSTEM_DISK
         value: local
     healthCheckPath: /api/health
-    releaseCommand: php artisan migrate --force
 
