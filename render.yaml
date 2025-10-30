@@ -48,5 +48,9 @@ services:
         value: "120"
       - key: FILESYSTEM_DISK
         value: local
+      - key: PASSPORT_PASSWORD_CLIENT_ID
+        value: "3"
+      - key: PASSPORT_PASSWORD_CLIENT_SECRET
+        value: "jnwOI8ZoTtjnRLP8ol8OkR1crGBxRbeD9DFX1K7z"
     healthCheckPath: /api/health
 
