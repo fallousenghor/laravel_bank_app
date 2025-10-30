@@ -69,6 +69,23 @@ class AuthController extends Controller
         $clientId = env('PASSPORT_PASSWORD_CLIENT_ID');
         $clientSecret = env('PASSPORT_PASSWORD_CLIENT_SECRET');
 
+        // Fallback: if env vars are missing (or config cache stale), try to read the
+        // password client directly from the database. This helps in environments
+        // where .env isn't up-to-date but the oauth clients exist in DB.
+        if (!$clientId || !$clientSecret) {
+            try {
+                $dbClient = \DB::table('oauth_clients')->where('password_client', 1)->first();
+                if ($dbClient && !empty($dbClient->id) && !empty($dbClient->secret)) {
+                    $clientId = $dbClient->id;
+                    $clientSecret = $dbClient->secret;
+                    \Log::warning('Using oauth client credentials from database as PASSPORT_PASSWORD_CLIENT_* env vars are missing or empty.');
+                }
+            } catch (\Exception $e) {
+                // Ignore DB errors here; we'll surface a clear message below if no creds found
+                \Log::error('Failed to read oauth_clients table for fallback credentials: ' . $e->getMessage());
+            }
+        }
+
         if (!$clientId || !$clientSecret) {
             return response()->json(['message' => 'OAuth client credentials are not configured. Run "php artisan passport:install" and set PASSPORT_PASSWORD_CLIENT_ID/PASSPORT_PASSWORD_CLIENT_SECRET in .env'], 500);
         }

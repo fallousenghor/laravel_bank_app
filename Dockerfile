@@ -67,6 +67,15 @@ RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 # S'assurer que le processus PHP peut écrire dans ces répertoires
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
+# Ensure php-fpm uses a TCP listen socket on 127.0.0.1:9000 so nginx (fastcgi_pass 127.0.0.1:9000)
+# can reliably connect. Some base images use a unix socket; normalize to TCP here.
+RUN if [ -f /usr/local/etc/php-fpm.d/www.conf ]; then \
+        sed -ri 's/^;?listen\s*=.*/listen = 127.0.0.1:9000/' /usr/local/etc/php-fpm.d/www.conf || true; \
+    fi
+
+# Ensure nginx log dir exists and is writable by www-data
+RUN mkdir -p /var/log/nginx && chown -R www-data:www-data /var/log/nginx
+
 # Changer vers l'utilisateur www-data pour php-fpm
 # Copier le script d'entrypoint qui exécutera migrations / seeders au démarrage
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

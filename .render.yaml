@@ -1,8 +1,0 @@
-services:
-  - type: web
-    name: laravel_app
-    env: php
-    plan: free
-    buildCommand: "composer install --no-dev --optimize-autoloader"
-    startCommand: "vendor/bin/heroku-php-apache2 public/"
-    releaseCommand: "php artisan config:clear && php artisan config:cache && php artisan l5-swagger:generate --no-interaction"

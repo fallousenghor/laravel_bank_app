@@ -92,6 +92,30 @@ echo "[entrypoint] Starting php-fpm..."
 # Start php-fpm (daemonize) so nginx can connect to it
 php-fpm || true
 
+# Give php-fpm a short moment to come up and then show active listeners/processes
+sleep 0.5
+echo "[entrypoint] Active TCP listeners (ss -ltn):"
+ss -ltn 2>/dev/null || netstat -ltn 2>/dev/null || true
+echo "[entrypoint] php-fpm processes (ps aux | grep php-fpm):"
+ps aux | grep php-fpm || true
+
 echo "[entrypoint] Starting nginx in foreground (will bind to ${PORT})"
+# Test nginx configuration first and surface failures to logs so platform health checks
+# can see why nginx might fail to bind. If the test fails, print diagnostics and exit
+# with non-zero status which will be visible in the deployment logs.
+if nginx -t 2>/tmp/nginx-test.err; then
+  echo "[entrypoint] nginx configuration OK"
+else
+  echo "[entrypoint] nginx configuration test FAILED"
+  echo "[entrypoint] --- nginx -t output ---"
+  cat /tmp/nginx-test.err || true
+  echo "[entrypoint] --- /etc/nginx/conf.d/default.conf ---"
+  sed -n '1,200p' /etc/nginx/conf.d/default.conf || true
+  echo "[entrypoint] --- /var/log/nginx/error.log (tail) ---"
+  tail -n 200 /var/log/nginx/error.log || true
+  # Exit non-zero so the platform marks the deployment logs with the failure output
+  exit 1
+fi
+
 # Start nginx in foreground (this will be PID 1)
 exec nginx -g 'daemon off;'

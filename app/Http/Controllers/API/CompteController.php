@@ -164,7 +164,7 @@ class CompteController extends Controller
      *         required=false,
      *         @OA\Schema(type="string", enum={"asc", "desc"})
      *     ),
-    
+
      *     @OA\Response(
      *         response=200,
      *         description="Liste des comptes récupérée avec succès",
@@ -261,8 +261,30 @@ class CompteController extends Controller
             // Delegate query building to repository (which will handle relations and sorting)
             $comptes = $this->compteRepository->getAllComptes($filters, $page, $limit);
 
-            // Return a standardized paginated response
-            return $this->paginatedResponse($comptes, 'Liste des comptes récupérée avec succès', 200);
+            // Build a consistent API response with pagination metadata
+            $data = CompteResource::collection($comptes->items());
+
+            $pagination = [
+                'currentPage' => $comptes->currentPage(),
+                'totalPages' => $comptes->lastPage(),
+                'totalItems' => $comptes->total(),
+                'itemsPerPage' => $comptes->perPage(),
+                'hasNext' => $comptes->hasMorePages(),
+                'hasPrevious' => $comptes->currentPage() > 1,
+            ];
+
+            $links = [
+                'self' => url()->current() . '?page=' . $comptes->currentPage() . '&limit=' . $comptes->perPage(),
+                'next' => $comptes->nextPageUrl(),
+                'first' => $comptes->url(1),
+                'last' => $comptes->url($comptes->lastPage()),
+            ];
+
+            return $this->successResponse([
+                'data' => $data,
+                'pagination' => $pagination,
+                'links' => $links,
+            ], 'Liste des comptes récupérée avec succès');
 
         } catch (\Exception $e) {
             \Log::error('Erreur lors de la récupération des comptes: ' . $e->getMessage(), [
@@ -362,7 +384,7 @@ class CompteController extends Controller
      *             @OA\Property(property="message", type="string", example="Comptes de l'utilisateur")
      *         )
      *     ),
-    
+
      *     @OA\Response(
      *         response=401,
      *         description="Non authentifié",
@@ -716,7 +738,7 @@ class CompteController extends Controller
      *     summary="Bloquer un compte bancaire",
      *     description="Bloque un compte bancaire avec des dates de début et fin de blocage",
      *     security={{"bearerAuth":{}}},
-    *    
+    *
      *     @OA\Parameter(
      *         name="compteId",
      *         in="path",
