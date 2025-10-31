@@ -87,6 +87,15 @@ else
   echo "[entrypoint] Password grant client already exists; skipping creation."
 fi
 
+# Ensure Passport keys exist
+if [ ! -f storage/oauth-private.key ] || [ ! -f storage/oauth-public.key ]; then
+  echo "[entrypoint] Passport keys not found; generating them..."
+  php artisan passport:keys
+  echo "[entrypoint] Passport keys generated."
+else
+  echo "[entrypoint] Passport keys already exist."
+fi
+
 php artisan config:cache || true
 php artisan route:cache || true
 php artisan view:cache || true
