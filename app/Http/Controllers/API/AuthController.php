@@ -66,8 +66,9 @@ class AuthController extends Controller
         $user = Auth::user();
 
         // Prepare password grant request to Passport /oauth/token
-        $clientId = config('auth.passport.client_id');
-        $clientSecret = config('auth.passport.client_secret');
+        // Always use database fallback for client credentials
+        $clientId = null;
+        $clientSecret = null;
 
         // Fallback: if env vars are missing (or config cache stale), try to read the
         // password client directly from the database. This helps in environments
@@ -235,8 +236,8 @@ class AuthController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $clientId = config('auth.passport.client_id');
-        $clientSecret = config('auth.passport.client_secret');
+        $clientId = null;
+        $clientSecret = null;
 
         // Use internal dispatch to refresh token
         $refreshRequest = \Illuminate\Http\Request::create('/oauth/token', 'POST', [
