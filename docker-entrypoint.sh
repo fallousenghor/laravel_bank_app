@@ -96,6 +96,13 @@ else
   echo "[entrypoint] Passport keys already exist."
 fi
 
+# Clear all caches to ensure Passport changes are reflected
+echo "[entrypoint] Clearing caches to ensure Passport configuration is loaded..."
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+echo "[entrypoint] Caches cleared."
+
 php artisan config:cache || true
 php artisan route:cache || true
 php artisan view:cache || true
