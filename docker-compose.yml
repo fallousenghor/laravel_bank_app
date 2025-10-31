@@ -11,6 +11,11 @@ services:
     container_name: laravel_app
     restart: unless-stopped
     working_dir: /var/www/html
+    environment:
+      - PASSPORT_PASSWORD_CLIENT_ID=8
+      - PASSPORT_PASSWORD_CLIENT_SECRET=T8ehpOJXspTtBbP1LmOUDnAagkpLg1Svqw5pj2rc
+      - PASSPORT_PERSONAL_ACCESS_CLIENT_ID=7
+      - PASSPORT_PERSONAL_ACCESS_CLIENT_SECRET=fBpuJd3nDsZy6Jtr5yPXc0fvxvvOMnNdxR04Vgbb
     volumes:
       - .:/var/www/html
     networks:
