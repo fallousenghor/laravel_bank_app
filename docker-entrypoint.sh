@@ -58,6 +58,11 @@ if [ "${MIGRATE_ON_STARTUP:-false}" = "true" ]; then
   done
 else
   echo "[entrypoint] MIGRATE_ON_STARTUP not enabled; skipping automatic migrations. Set MIGRATE_ON_STARTUP=true to enable."
+  # Force Passport migrations even if MIGRATE_ON_STARTUP is false
+  if php artisan migrate:status | grep -q "oauth_.*Pending"; then
+    echo "[entrypoint] Pending Passport migrations detected; running them..."
+    php artisan migrate --force || echo "[entrypoint] Passport migrations failed; continuing."
+  fi
 fi
 
 if [ "${RUN_SEEDERS:-false}" = "true" ]; then
@@ -69,6 +74,17 @@ if [ "${RUN_SEEDERS:-false}" = "true" ]; then
   fi
 else
   echo "[entrypoint] RUN_SEEDERS not enabled; skipping seeders."
+fi
+
+# Always run Passport client creation if not exists
+if ! php artisan passport:client --help >/dev/null 2>&1; then
+  echo "[entrypoint] Passport not installed; skipping client creation."
+elif php artisan tinker --execute="echo \Laravel\Passport\Client::where('password_client', 1)->count();" | grep -q "^0$"; then
+  echo "[entrypoint] Creating password grant client..."
+  echo "" | php artisan passport:client --password --name="Laravel Password Grant Client"
+  echo "[entrypoint] Password grant client created."
+else
+  echo "[entrypoint] Password grant client already exists; skipping creation."
 fi
 
 php artisan config:cache || true
