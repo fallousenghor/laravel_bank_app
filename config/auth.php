@@ -18,6 +18,14 @@ return [
         'passwords' => 'users',
     ],
 
+    'passport' => [
+    'client_id' => env('PASSPORT_PASSWORD_CLIENT_ID'),
+    'client_secret' => env('PASSPORT_PASSWORD_CLIENT_SECRET'),
+    'private_key' => env('OAUTH_PRIVATE_KEY'),
+    'public_key' => env('OAUTH_PUBLIC_KEY'),
+],
+
+
     /*
     |--------------------------------------------------------------------------
     | Authentication Guards
