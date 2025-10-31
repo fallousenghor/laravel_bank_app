@@ -55,6 +55,13 @@ class AuthServiceProvider extends ServiceProvider
             if (method_exists(Passport::class, 'refreshTokensExpireIn')) {
                 Passport::refreshTokensExpireIn(Carbon::now()->addDays(30));
             }
+
+            // Load keys from environment variables or storage
+            if (env('OAUTH_PRIVATE_KEY') && env('OAUTH_PUBLIC_KEY')) {
+                Passport::loadKeysFrom(null);
+            } else {
+                Passport::loadKeysFrom(storage_path());
+            }
         }
     }
 }
