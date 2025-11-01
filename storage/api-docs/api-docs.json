@@ -329,155 +329,6 @@
             }
         },
         "/senghorfallou/v1/comptes/{id}": {
-            "get": {
-                "tags": [
-                    "Comptes"
-                ],
-                "summary": "Obtenir les détails d'un compte spécifique",
-                "description": "Retourne les détails d'un compte bancaire spécifique. Les administrateurs peuvent voir tous les comptes, les clients ne peuvent voir que leurs propres comptes.",
-                "operationId": "34d22281b22a0a3b4b88aa3cc8183779",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "Numéro du compte (ex: CPT123456)",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Détails du compte récupérés avec succès",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "id": {
-                                                    "type": "string",
-                                                    "format": "uuid",
-                                                    "example": "a02eab71-0ae7-48cf-bc37-92d0493737e1"
-                                                },
-                                                "numeroCompte": {
-                                                    "type": "string",
-                                                    "example": "CPT123456"
-                                                },
-                                                "titulaire": {
-                                                    "type": "string",
-                                                    "example": "Amadou Diallo"
-                                                },
-                                                "type": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "Épargne",
-                                                        "Chèque"
-                                                    ],
-                                                    "example": "Épargne"
-                                                },
-                                                "solde": {
-                                                    "type": "number",
-                                                    "format": "float",
-                                                    "example": 1000.5
-                                                },
-                                                "devise": {
-                                                    "type": "string",
-                                                    "example": "FCFA"
-                                                },
-                                                "statut": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "Actif",
-                                                        "Bloqué",
-                                                        "Fermé"
-                                                    ],
-                                                    "example": "Actif"
-                                                },
-                                                "dateCreation": {
-                                                    "type": "string",
-                                                    "format": "date-time",
-                                                    "example": "2023-10-23T00:00:00Z"
-                                                },
-                                                "metadata": {
-                                                    "properties": {
-                                                        "derniereModification": {
-                                                            "type": "string",
-                                                            "format": "date-time",
-                                                            "example": "2023-06-10T14:30:00Z"
-                                                        },
-                                                        "version": {
-                                                            "type": "integer",
-                                                            "example": 1
-                                                        }
-                                                    },
-                                                    "type": "object"
-                                                }
-                                            },
-                                            "type": "object"
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Détails du compte"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "ID administrateur requis",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "ID administrateur requis"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Compte non trouvé",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Compte non trouvé"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            },
             "delete": {
                 "tags": [
                     "Comptes"
@@ -1080,6 +931,157 @@
                                         },
                                         "errors": {
                                             "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/senghorfallou/v1/comptes/{numero}": {
+            "get": {
+                "tags": [
+                    "Comptes"
+                ],
+                "summary": "Obtenir les détails d'un compte spécifique",
+                "description": "Retourne les détails d'un compte bancaire spécifique. Les administrateurs peuvent voir tous les comptes, les clients ne peuvent voir que leurs propres comptes.",
+                "operationId": "5eeea80788b9306a6e78f224c0e70e5c",
+                "parameters": [
+                    {
+                        "name": "numero",
+                        "in": "path",
+                        "description": "Numéro du compte (ex: CPT123456)",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Détails du compte récupérés avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid",
+                                                    "example": "a02eab71-0ae7-48cf-bc37-92d0493737e1"
+                                                },
+                                                "numeroCompte": {
+                                                    "type": "string",
+                                                    "example": "CPT123456"
+                                                },
+                                                "titulaire": {
+                                                    "type": "string",
+                                                    "example": "Amadou Diallo"
+                                                },
+                                                "type": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Épargne",
+                                                        "Chèque"
+                                                    ],
+                                                    "example": "Épargne"
+                                                },
+                                                "solde": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 1000.5
+                                                },
+                                                "devise": {
+                                                    "type": "string",
+                                                    "example": "FCFA"
+                                                },
+                                                "statut": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Actif",
+                                                        "Bloqué",
+                                                        "Fermé"
+                                                    ],
+                                                    "example": "Actif"
+                                                },
+                                                "dateCreation": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2023-10-23T00:00:00Z"
+                                                },
+                                                "metadata": {
+                                                    "properties": {
+                                                        "derniereModification": {
+                                                            "type": "string",
+                                                            "format": "date-time",
+                                                            "example": "2023-06-10T14:30:00Z"
+                                                        },
+                                                        "version": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Détails du compte"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "ID administrateur requis",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "ID administrateur requis"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Compte non trouvé",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Compte non trouvé"
                                         }
                                     },
                                     "type": "object"

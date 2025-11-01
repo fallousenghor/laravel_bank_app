@@ -21,12 +21,12 @@ class ShowCompteRequest extends FormRequest
      */
     public function rules(): array
     {
-        // Le paramètre de route contient désormais le numéro de compte
-        $this->merge(['id' => $this->route('id')]);
+        // The route parameter now contains the account number 'numero'
+        $this->merge(['numero' => $this->route('numero')]);
 
         return [
-            // We accept a string account number. Ensure it exists in the `comptes.numero` column.
-            'id' => 'required|string|exists:comptes,numero',
+            // Accept a string account number and ensure it exists in the `comptes.numero` column.
+            'numero' => 'required|string|exists:comptes,numero',
         ];
     }
 
@@ -38,9 +38,9 @@ class ShowCompteRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'id.required' => 'Le numéro de compte est requis.',
-            'id.string' => 'Le numéro de compte doit être une chaîne de caractères.',
-            'id.exists' => 'Le numéro de compte spécifié n\'existe pas.',
+            'numero.required' => 'Le numéro de compte est requis.',
+            'numero.string' => 'Le numéro de compte doit être une chaîne de caractères.',
+            'numero.exists' => 'Le numéro de compte spécifié n\'existe pas.',
         ];
     }
 }

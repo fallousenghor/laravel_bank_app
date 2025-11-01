@@ -15,7 +15,9 @@ class StoreCompteRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true; // Admin can create accounts
+        $user = $this->user();
+        // Only admins are allowed to create new comptes
+        return $user && isset($user->role) && $user->role === 'admin';
     }
 
     /**

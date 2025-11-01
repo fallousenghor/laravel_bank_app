@@ -441,13 +441,13 @@ class CompteController extends Controller
 
     /**
      * @OA\Get(
-     *     path="/senghorfallou/v1/comptes/{id}",
+     *     path="/senghorfallou/v1/comptes/{numero}",
      *     tags={"Comptes"},
      *     summary="Obtenir les détails d'un compte spécifique",
      *     description="Retourne les détails d'un compte bancaire spécifique. Les administrateurs peuvent voir tous les comptes, les clients ne peuvent voir que leurs propres comptes.",
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
-     *         name="id",
+     *         name="numero",
      *         in="path",
      *         description="Numéro du compte (ex: CPT123456)",
      *         required=true,
@@ -493,12 +493,11 @@ class CompteController extends Controller
      *     )
      * )
      */
-    public function show(ShowCompteRequest $request, $id)
+    public function show(ShowCompteRequest $request, $numero)
     {
-        // The route param `id` now represents the account number (`numero` column).
-        $numero = $id;
+        // The route param `numero` represents the account number (numero column).
 
-        // Find by account number. Use repository if it gains support, otherwise query model directly.
+        // Find by account number.
         $compte = Compte::where('numero', $numero)->first();
 
         if (!$compte) {
@@ -713,13 +712,13 @@ class CompteController extends Controller
                 return $this->errorResponse('Authentification requise', 401);
             }
 
-            // If the authenticated user is not an admin, always create the compte for themself.
-            // Admins may specify a client payload to create an account for another user.
+            // Only admins are allowed to create new comptes. Admins may specify a client payload
+            // to create an account for another user.
             $client = null;
             $clientInput = $validated['client'] ?? [];
 
             if ($authUser->role !== 'admin') {
-                $client = $authUser;
+                return $this->errorResponse('Seul un administrateur peut créer un compte', 403);
             } else {
                 // Admin flow: try to find or create the client from payload
                 if (!empty($clientInput['id'])) {
