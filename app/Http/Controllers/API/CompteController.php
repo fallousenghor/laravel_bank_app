@@ -10,6 +10,8 @@ use App\Http\Requests\StoreCompteRequest;
 use App\Http\Requests\UpdateCompteRequest;
 use App\Http\Requests\BloquerCompteRequest;
 use App\Http\Resources\CompteResource;
+use App\Http\Requests\SearchClientRequest;
+use App\Http\Resources\UserResource;
 use App\Models\Compte;
 use App\Models\User;
 use App\Events\ClientCreated;
@@ -538,6 +540,95 @@ class CompteController extends Controller
                 'request' => $request->all()
             ]);
             return $this->errorResponse("Erreur interne du serveur", 500);
+        }
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/senghorfallou/v1/clients/search",
+     *     tags={"Clients"},
+     *     summary="Rechercher un client par téléphone ou NCI",
+     *     description="Permet à un administrateur de rechercher un client en fournissant le champ `telephone` ou `nci` (au moins un).",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="telephone",
+     *         in="query",
+     *         description="Numéro de téléphone du client (format local, ex: 771234567)",
+     *         required=false,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Parameter(
+     *         name="nci",
+     *         in="query",
+     *         description="Numéro NCI du client",
+     *         required=false,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Client trouvé",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="id", type="integer", example=1),
+     *                 @OA\Property(property="prenom", type="string", example="Amadou"),
+     *                 @OA\Property(property="nom", type="string", example="Diallo"),
+     *                 @OA\Property(property="email", type="string", format="email", example="amadou.diallo@example.com"),
+     *                 @OA\Property(property="telephone", type="string", example="771234567"),
+     *                 @OA\Property(property="adresse", type="string", example="Dakar, Sénégal"),
+     *                 @OA\Property(property="role", type="string", example="user"),
+     *                 @OA\Property(property="comptes", type="array", @OA\Items(type="object",
+     *                     @OA\Property(property="id", type="string", format="uuid"),
+     *                     @OA\Property(property="numero", type="string")
+     *                 ))
+     *             ),
+     *             @OA\Property(property="message", type="string", example="Client trouvé")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Authentification requise"),
+     *     @OA\Response(response=403, description="Accès non autorisé - admin requis"),
+     *     @OA\Response(response=404, description="Client non trouvé")
+     * )
+     */
+    public function searchClient(SearchClientRequest $request)
+    {
+        try {
+            $validated = $request->validated();
+
+            $telephone = $validated['telephone'] ?? null;
+            $nci = $validated['nci'] ?? null;
+
+            $userQuery = User::query();
+
+            $userQuery->where(function ($q) use ($telephone, $nci) {
+                if ($telephone) {
+                    $q->where('telephone', $telephone);
+                }
+
+                if ($nci) {
+                    // use orWhere only inside the group so that multiple params are ORed together
+                    if ($telephone) {
+                        $q->orWhere('nci', $nci);
+                    } else {
+                        $q->where('nci', $nci);
+                    }
+                }
+            });
+
+            $client = $userQuery->with('comptes')->first();
+
+            if (!$client) {
+                return $this->errorResponse('Client non trouvé', 404);
+            }
+
+            return $this->successResponse(new UserResource($client), 'Client trouvé');
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors de la recherche du client: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return $this->errorResponse('Erreur interne du serveur', 500);
         }
     }
 

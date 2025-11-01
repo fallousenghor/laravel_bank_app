@@ -37,6 +37,8 @@ Route::group(['prefix' => 'v1'], function () {
             Route::get('comptes', [CompteController::class, 'index']);
             Route::post('comptes', [CompteController::class, 'store']);
             Route::get('comptes/mine', [CompteController::class, 'mine']);
+            // Recherche d'un client (par téléphone ou NCI) — réservé aux admins
+            Route::get('clients/search', [CompteController::class, 'searchClient']);
             Route::get('comptes/{id}', [CompteController::class, 'show']);
             Route::patch('comptes/{compteId}', [CompteController::class, 'update']);
             Route::post('comptes/{compteId}/bloquer', [CompteController::class, 'bloquer']);

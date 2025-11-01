@@ -69,8 +69,11 @@ class User extends Authenticatable
      */
     public function comptes()
     {
-        return $this->hasMany(Compte::class, 'utilisateur_id')
-                    ->select(['id', 'numero', 'utilisateur_id']); // On garde l'id et utilisateur_id pour la relation
+        // The comptes table uses `client_id` as the foreign key. Use that to eager-load the
+        // related accounts and select the appropriate columns. Previously this referenced
+        // `utilisateur_id` which does not exist in the schema and caused SQL errors.
+        return $this->hasMany(Compte::class, 'client_id')
+                    ->select(['id', 'numero', 'client_id']); // Keep id and client_id for the relation
     }
 
     /**
