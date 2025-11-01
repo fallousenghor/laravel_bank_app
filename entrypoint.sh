@@ -37,5 +37,13 @@ if [ "${RUN_MIGRATIONS_ON_START:-false}" = "true" ]; then
   php artisan db:seed --class=Database\\Seeders\\PassportClientsSeeder --force || echo "seeding passport clients failed"
 fi
 
-# Execute the main process (php-fpm)
-exec "$@"
+# If PORT is set (Render provides it), start the built-in PHP server so Render
+# can detect an open HTTP port. Otherwise execute the default CMD (php-fpm).
+if [ -n "${PORT:-}" ]; then
+  echo "PORT is set to ${PORT} - starting php built-in server for HTTP on 0.0.0.0:${PORT}"
+  # Use exec so the process inherits PID 1 and signals are forwarded
+  exec php artisan serve --host 0.0.0.0 --port "${PORT}"
+else
+  # Execute the main process (php-fpm)
+  exec "$@"
+fi
