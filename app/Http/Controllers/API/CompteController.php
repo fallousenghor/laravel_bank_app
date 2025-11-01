@@ -954,13 +954,7 @@ class CompteController extends Controller
      *     summary="Bloquer un compte bancaire",
      *     description="Bloque un compte bancaire avec des dates de début et fin de blocage. Réservé aux administrateurs.",
      *     security={{"bearerAuth":{}}},
-    *     @OA\Parameter(
-    *         name="admin_id",
-    *         in="query",
-    *         description="ID de l'admin (pour accès temporaire sans authentification)",
-    *         required=false,
-    *         @OA\Schema(type="string", format="uuid")
-    *     ),
+    *
      *     @OA\Parameter(
      *         name="compteId",
      *         in="path",

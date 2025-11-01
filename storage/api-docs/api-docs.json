@@ -1415,16 +1415,6 @@
                 "operationId": "464db1395c694e2a59862fc7a8c25540",
                 "parameters": [
                     {
-                        "name": "admin_id",
-                        "in": "query",
-                        "description": "ID de l'admin (pour accès temporaire sans authentification)",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        }
-                    },
-                    {
                         "name": "compteId",
                         "in": "path",
                         "description": "ID du compte à bloquer",
