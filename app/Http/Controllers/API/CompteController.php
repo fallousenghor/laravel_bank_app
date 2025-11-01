@@ -447,9 +447,9 @@ class CompteController extends Controller
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
-     *         description="ID du compte (UUID)",
+     *         description="Numéro du compte (ex: CPT123456)",
      *         required=true,
-     *         @OA\Schema(type="string", format="uuid")
+     *         @OA\Schema(type="string")
      *     ),
      *     @OA\Response(
      *         response=200,
@@ -493,8 +493,15 @@ class CompteController extends Controller
      */
     public function show(ShowCompteRequest $request, $id)
     {
-        // L'ID est déjà validé par ShowCompteRequest
-        $compte = $this->compteRepository->getCompteById($id);
+        // The route param `id` now represents the account number (`numero` column).
+        $numero = $id;
+
+        // Find by account number. Use repository if it gains support, otherwise query model directly.
+        $compte = Compte::where('numero', $numero)->first();
+
+        if (!$compte) {
+            return $this->errorResponse('Compte non trouvé', 404);
+        }
 
         // Authorization: authenticated user only (policies check admin/owner)
         $user = $request->user();
@@ -508,59 +515,11 @@ class CompteController extends Controller
     }
 
     /**
-     * @OA\Get(
-     *     path="/senghorfallou/v1/comptes/mine",
-     *     tags={"Comptes"},
-     *     summary="Obtenir les comptes du client connecté",
-     *     description="Retourne la liste des comptes actifs du client connecté. Les clients ne voient que leurs propres comptes.",
-     *     security={{"bearerAuth":{}}},
-    *     @OA\Parameter(
-    *         name="user_id",
-    *         in="query",
-    *         description="ID de l'utilisateur (UUID) - requis si non authentifié",
-    *         required=false,
-    *         @OA\Schema(type="string", format="uuid", example="a037c752-44b6-489f-8502-ae011d0e0793")
-    *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Liste des comptes de l'utilisateur récupérée avec succès",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="data", type="array", @OA\Items(
-     *                 @OA\Property(property="id", type="string", format="uuid", example="550e8400-e29b-41d4-a716-446655440000"),
-     *                 @OA\Property(property="numeroCompte", type="string", example="C00123456"),
-     *                 @OA\Property(property="titulaire", type="string", example="Amadou Diallo"),
-     *                 @OA\Property(property="type", type="string", enum={"Épargne", "Chèque"}, example="epargne"),
-     *                 @OA\Property(property="solde", type="number", format="float", example=1250000),
-     *                 @OA\Property(property="devise", type="string", example="FCFA"),
-     *                 @OA\Property(property="dateCreation", type="string", format="date-time", example="2023-03-15T00:00:00Z"),
-     *                 @OA\Property(property="statut", type="string", enum={"Actif", "Bloqué", "Fermé"}, example="actif"),
-     *                 @OA\Property(property="motifBlocage", type="string", nullable=true, example=null),
-     *                 @OA\Property(property="metadata", type="object",
-     *                     @OA\Property(property="derniereModification", type="string", format="date-time", example="2023-06-10T14:30:00Z"),
-     *                     @OA\Property(property="version", type="integer", example=1)
-     *                 )
-     *             )),
-     *             @OA\Property(property="message", type="string", example="Comptes de l'utilisateur")
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=400,
-     *         description="Paramètre user_id requis lorsque non authentifié",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=false),
-     *             @OA\Property(property="message", type="string", example="Paramètre 'user_id' requis lorsque non authentifié")
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=401,
-     *         description="Non authentifié",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=false),
-     *             @OA\Property(property="message", type="string", example="Non authentifié")
-     *         )
-     *     )
-     * )
+     * Return the active accounts of the authenticated user.
+     *
+     * NOTE: This endpoint is intentionally not documented in the public Swagger/OpenAPI
+     * documentation. Keep the implementation but avoid OpenAPI annotations here so that
+     * l5-swagger will no longer include it in the generated docs.
      */
     public function mine(MineComptesRequest $request)
     {

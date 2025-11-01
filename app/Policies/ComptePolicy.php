@@ -17,7 +17,9 @@ class ComptePolicy
         }
 
         // Clients can only view their own accounts
-        if ($user && $user->id === $compte->utilisateur_id) {
+        // The compte model stores the owner in `client_id` (alias `utilisateur()` exists),
+        // so compare against `client_id` to allow clients to access their own comptes.
+        if ($user && $user->id === $compte->client_id) {
             return true;
         }
 
@@ -34,7 +36,7 @@ class ComptePolicy
         }
 
         // Clients can only update their own accounts
-        return $user && $user->id === $compte->utilisateur_id;
+        return $user && $user->id === $compte->client_id;
     }
 
     /**
@@ -47,6 +49,6 @@ class ComptePolicy
         }
 
         // Clients can only delete their own accounts
-        return $user && $user->id === $compte->utilisateur_id;
+        return $user && $user->id === $compte->client_id;
     }
 }

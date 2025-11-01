@@ -5,6 +5,9 @@ namespace App\Exceptions;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Throwable;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class Handler extends ExceptionHandler
 {
@@ -38,6 +41,36 @@ class Handler extends ExceptionHandler
                     'message' => 'Méthode HTTP non autorisée pour cette route.',
                     'allowed_methods' => $allowed,
                 ], 405);
+            }
+        });
+
+        // Return a clean JSON response for authorization failures (403)
+        $this->renderable(function (AuthorizationException $e, $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Accès non autorisé',
+                ], 403);
+            }
+        });
+
+        // Symfony AccessDeniedHttpException may also be thrown in some flows
+        $this->renderable(function (AccessDeniedHttpException $e, $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Accès non autorisé',
+                ], 403);
+            }
+        });
+
+        // Authentication failures should return a clean 401 JSON response
+        $this->renderable(function (AuthenticationException $e, $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Authentification requise',
+                ], 401);
             }
         });
     }
