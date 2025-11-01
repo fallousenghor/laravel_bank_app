@@ -33,8 +33,8 @@ if [ "${RUN_MIGRATIONS_ON_START:-false}" = "true" ]; then
     echo "Passport keys present - skipping generation"
   fi
 
-  # Seed minimal oauth clients if missing
-  php artisan db:seed --class=Database\\Seeders\\PassportClientsSeeder || echo "seeding passport clients failed"
+  # Seed minimal oauth clients if missing (use --force to avoid interactive confirmation in production)
+  php artisan db:seed --class=Database\\Seeders\\PassportClientsSeeder --force || echo "seeding passport clients failed"
 fi
 
 # Execute the main process (php-fpm)

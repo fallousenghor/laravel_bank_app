@@ -17,8 +17,14 @@ services:
     dockerfilePath: Dockerfile
     # Optional: build args
     buildCommand: docker build -t image .
-    # Start command will be run inside the container. We use php-fpm (CMD in Dockerfile)
-    startCommand: php-fpm
+    # Start command will be run inside the container. Use the built-in PHP server
+    # to expose an HTTP port that Render can detect. For production you can replace
+    # this with a proper nginx+php-fpm setup, but `php artisan serve` is a small
+    # pragmatic option to get the app reachable on Render's PORT.
+    startCommand: sh -lc "php artisan serve --host 0.0.0.0 --port ${PORT:-8080}"
+    envVars:
+      - key: PORT
+        value: '8080'
     envVars:
       - key: APP_ENV
         value: production
@@ -53,6 +59,8 @@ services:
         value: production
       - key: QUEUE_CONNECTION
         value: redis
+      - key: PORT
+        value: '8080'
     secrets:
       - key: REDIS_PASSWORD
         name: REDIS_PASSWORD
