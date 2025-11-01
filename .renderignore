@@ -1,0 +1,8 @@
+# Ignore sensitive files from being uploaded/published to Render
+.env
+/.env
+storage/oauth-private.key
+storage/oauth-public.key
+/.git
+/.github
+/.gitignore

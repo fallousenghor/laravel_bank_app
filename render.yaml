@@ -1,50 +1,75 @@
+# Render manifest for deploying this Laravel app using the included Dockerfile.
+#
+# Notes:
+# - This manifest creates a web service (Docker), a worker for Laravel queues
+#   and a cron job to run the scheduler regularly.
+# - You must set required environment variables and secrets in the Render
+#   dashboard (or via `render secrets create`) before deploying.
+# - Sensitive values should be added as Render secrets: APP_KEY, DB_PASSWORD,
+#   OAUTH_PRIVATE_KEY, OAUTH_PUBLIC_KEY, MAIL_* etc.
+
 services:
   - type: web
-    name: fallou-senghor-bank
+    name: laravel-backend
     env: docker
-    plan: free
+    plan: starter
+    branch: deploiment
+    dockerfilePath: Dockerfile
+    # Optional: build args
+    buildCommand: docker build -t image .
+    # Start command will be run inside the container. We use php-fpm (CMD in Dockerfile)
+    startCommand: php-fpm
     envVars:
-      - key: APP_NAME
-        value: "Bank App"
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
-        value: "false"
-      - key: APP_KEY
-        sync: false
+        value: 'false'
       - key: APP_URL
-        value: "https://laravel-bank-app.onrender.com"
-      - key: L5_SWAGGER_USE_HTTPS
-        value: "true"
-      - key: LOG_CHANNEL
-        value: stderr
-      - key: LOG_LEVEL
-        value: error
-      - key: DB_CONNECTION
-        value: pgsql
-      - key: DB_HOST
-        value: ep-steep-feather-adccnsal-pooler.c-2.us-east-1.aws.neon.tech
-      - key: DB_PORT
-        value: "5432"
-      - key: DB_DATABASE
-        value: neondb
-      - key: DB_USERNAME
-        value: neondb_owner
+        # Set this to your public URL in the Render dashboard
+        value: ''
+      - key: RUN_MIGRATIONS_ON_START
+        value: 'true'
+    # These secrets should be created in Render and referenced by name in the dashboard
+    # (Render UI/CLI will let you create them; names below are recommendations)
+    secrets:
+      - key: APP_KEY
+        name: APP_KEY
       - key: DB_PASSWORD
-        value: npg_JTkO6wecp8Sr
-      - key: DB_SSLMODE
-        value: require
-      - key: CACHE_DRIVER
-        value: file
-      - key: SESSION_DRIVER
-        value: file
-      - key: SESSION_LIFETIME
-        value: "120"
-      - key: FILESYSTEM_DISK
-        value: local
-    healthCheckPath: /api/health
-  autoDeploy: true
-    disk:
-      name: data
-      mountPath: /var/www/html/storage
-      sizeGB: 1
+        name: DB_PASSWORD
+      - key: OAUTH_PRIVATE_KEY
+        name: OAUTH_PRIVATE_KEY
+      - key: OAUTH_PUBLIC_KEY
+        name: OAUTH_PUBLIC_KEY
+
+  - type: worker
+    name: laravel-queue-worker
+    env: docker
+    plan: starter
+    branch: deploiment
+    dockerfilePath: Dockerfile
+    startCommand: php artisan queue:work --sleep=3 --tries=3 --timeout=60
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: QUEUE_CONNECTION
+        value: redis
+    secrets:
+      - key: REDIS_PASSWORD
+        name: REDIS_PASSWORD
+
+cronJobs:
+  - name: laravel-scheduler
+    schedule: "*/5 * * * *" # every 5 minutes
+    env: docker
+    dockerfilePath: Dockerfile
+    startCommand: php artisan schedule:run
+
+databases:
+  - name: laravel-database
+    engine: postgres
+    plan: starter
+
+# Reminder: Render will create the managed Postgres instance and provide a
+# DATABASE_URL environment variable. The Laravel `.env` should be configured
+# to use that value or set DB_CONNECTION, DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
+# via the Render dashboard's Environment tab.

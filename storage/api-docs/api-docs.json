@@ -2,17 +2,339 @@
     "openapi": "3.0.0",
     "info": {
         "title": "API de Gestion des Comptes Bancaires",
-        "description": "API pour la gestion des comptes bancaires",
+        "description": "API pour la gestion des comptes bancaires avec autorisations basées sur les rôles",
         "version": "1.0.0"
     },
+    "servers": [
+        {
+            "url": "/api/v1",
+            "description": "Serveur API"
+        },
+        {
+            "url": "/api/v1"
+        }
+    ],
     "paths": {
+        "/auth/login": {
+            "post": {
+                "tags": [
+                    "Authentification"
+                ],
+                "summary": "Connexion utilisateur",
+                "description": "Authentifie un utilisateur et retourne un token d'accès et un token de rafraîchissement",
+                "operationId": "1ff9c65c5cd1a8e0786e318eed856972",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "user@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Connexion réussie",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "access_token": {
+                                                    "type": "string",
+                                                    "example": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."
+                                                },
+                                                "refresh_token": {
+                                                    "type": "string",
+                                                    "example": "def50200..."
+                                                },
+                                                "token_type": {
+                                                    "type": "string",
+                                                    "example": "Bearer"
+                                                },
+                                                "expires_in": {
+                                                    "type": "integer",
+                                                    "example": 900
+                                                },
+                                                "user": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "string",
+                                                            "format": "uuid",
+                                                            "example": "550e8400-e29b-41d4-a716-446655440000"
+                                                        },
+                                                        "name": {
+                                                            "type": "string",
+                                                            "example": "John Doe"
+                                                        },
+                                                        "email": {
+                                                            "type": "string",
+                                                            "format": "email",
+                                                            "example": "user@example.com"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Connexion réussie"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Email ou mot de passe incorrect",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Email ou mot de passe incorrect"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erreur de validation",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Erreur de validation"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/refresh": {
+            "post": {
+                "tags": [
+                    "Authentification"
+                ],
+                "summary": "Rafraîchir le token d'accès",
+                "description": "Utilise un token de rafraîchissement pour obtenir un nouveau token d'accès",
+                "operationId": "cbc10c8921f8f6c47d1dd818a3901faf",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "refresh_token"
+                                ],
+                                "properties": {
+                                    "refresh_token": {
+                                        "type": "string",
+                                        "example": "def50200..."
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Token renouvelé avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "access_token": {
+                                                    "type": "string",
+                                                    "example": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."
+                                                },
+                                                "refresh_token": {
+                                                    "type": "string",
+                                                    "example": "def50200..."
+                                                },
+                                                "token_type": {
+                                                    "type": "string",
+                                                    "example": "Bearer"
+                                                },
+                                                "expires_in": {
+                                                    "type": "integer",
+                                                    "example": 900
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Token renouvelé avec succès"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token de rafraîchissement invalide",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Token de rafraîchissement invalide"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erreur de validation",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Erreur de validation"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/logout": {
+            "post": {
+                "tags": [
+                    "Authentification"
+                ],
+                "summary": "Déconnexion utilisateur",
+                "description": "Révoque le token d'accès actuel de l'utilisateur",
+                "operationId": "eae6a8251a6469bbabe454860f64cf37",
+                "responses": {
+                    "200": {
+                        "description": "Déconnexion réussie",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Déconnexion réussie"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Non authentifié",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Non authentifié"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/senghorfallou/v1/comptes/{id}": {
             "get": {
                 "tags": [
                     "Comptes"
                 ],
                 "summary": "Obtenir les détails d'un compte spécifique",
-                "description": "Retourne les détails d'un compte bancaire spécifique avec son utilisateur",
+                "description": "Retourne les détails d'un compte bancaire spécifique. Les administrateurs peuvent voir tous les comptes, les clients ne peuvent voir que leurs propres comptes.",
                 "operationId": "34d22281b22a0a3b4b88aa3cc8183779",
                 "parameters": [
                     {
@@ -162,7 +484,7 @@
                     "Comptes"
                 ],
                 "summary": "Supprimer un compte",
-                "description": "Effectue une suppression douce (soft delete) d'un compte",
+                "description": "Effectue une suppression douce (soft delete) d'un compte. Les clients ne peuvent supprimer que leurs propres comptes.",
                 "operationId": "a892cd9e4993c96d965bb848afa66fa7",
                 "parameters": [
                     {
@@ -223,7 +545,12 @@
                     "403": {
                         "description": "Non autorisé"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/senghorfallou/v1/comptes": {
@@ -232,7 +559,7 @@
                     "Comptes"
                 ],
                 "summary": "Lister tous les comptes",
-                "description": "Retourne la liste paginée de tous les comptes bancaires non supprimés",
+                "description": "Retourne la liste paginée des comptes bancaires. Les administrateurs voient tous les comptes, les clients ne voient que leurs propres comptes.",
                 "operationId": "aa1be305e6e07c73871a5f452be73791",
                 "parameters": [
                     {
@@ -775,7 +1102,7 @@
                     "Comptes"
                 ],
                 "summary": "Obtenir les comptes du client connecté",
-                "description": "Retourne la liste des comptes actifs du client authentifié ou via user_id en paramètre",
+                "description": "Retourne la liste des comptes actifs du client connecté. Les clients ne voient que leurs propres comptes.",
                 "operationId": "5dd6c4337febc845d974c83f44e38030",
                 "parameters": [
                     {
@@ -936,7 +1263,7 @@
                     "Comptes"
                 ],
                 "summary": "Mettre à jour les informations du client",
-                "description": "Modifie les informations du client associé à un compte bancaire. Tous les champs sont optionnels mais au moins un champ doit être fourni.",
+                "description": "Modifie les informations du client associé à un compte bancaire. Les clients ne peuvent modifier que leurs propres informations.",
                 "operationId": "91f4dd47a0bc957d91128f6316e8ee12",
                 "parameters": [
                     {
@@ -1149,7 +1476,7 @@
                     "Comptes"
                 ],
                 "summary": "Bloquer un compte bancaire",
-                "description": "Bloque un compte bancaire avec des dates de début et fin de blocage",
+                "description": "Bloque un compte bancaire avec des dates de début et fin de blocage. Réservé aux administrateurs.",
                 "operationId": "464db1395c694e2a59862fc7a8c25540",
                 "parameters": [
                     {
@@ -1301,12 +1628,17 @@
         "securitySchemes": {
             "bearerAuth": {
                 "type": "http",
+                "description": "Token JWT requis. Les administrateurs ont tous les droits, les clients ne peuvent voir/modifier que leurs propres comptes.",
                 "bearerFormat": "JWT",
                 "scheme": "bearer"
             }
         }
     },
     "tags": [
+        {
+            "name": "Authentification",
+            "description": "Authentification"
+        },
         {
             "name": "Comptes",
             "description": "Comptes"

@@ -4,6 +4,7 @@ namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Throwable;
+use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 
 class Handler extends ExceptionHandler
 {
@@ -25,6 +26,19 @@ class Handler extends ExceptionHandler
     {
         $this->reportable(function (Throwable $e) {
             //
+        });
+
+        // Render API-friendly JSON for HTTP method not allowed errors
+        $this->renderable(function (MethodNotAllowedHttpException $e, $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                $allowed = method_exists($e, 'getAllowedMethods') ? $e->getAllowedMethods() : [];
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Méthode HTTP non autorisée pour cette route.',
+                    'allowed_methods' => $allowed,
+                ], 405);
+            }
         });
     }
 }

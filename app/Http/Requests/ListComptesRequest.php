@@ -29,7 +29,6 @@ class ListComptesRequest extends FormRequest
             'search' => 'nullable|string|max:255',
             'sort' => 'nullable|string|in:dateCreation,solde,titulaire',
             'order' => 'nullable|string|in:asc,desc',
-            'admin_id' => 'nullable|string|uuid|exists:users,id',
         ];
     }
 
@@ -51,8 +50,7 @@ class ListComptesRequest extends FormRequest
             'search.max' => 'La recherche ne peut pas dépasser 255 caractères.',
             'sort.in' => 'Le tri doit être dateCreation, solde ou titulaire.',
             'order.in' => 'L\'ordre doit être asc ou desc.',
-            'admin_id.uuid' => 'L\'ID admin doit être un UUID valide.',
-            'admin_id.exists' => 'L\'admin spécifié n\'existe pas.',
+            // Note: admin_id support was removed. All requests must be authenticated.
         ];
     }
 }

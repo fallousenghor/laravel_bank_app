@@ -37,6 +37,7 @@ class DatabaseSeeder extends Seeder
 
         // Seed comptes and transactions for users
         $this->call([
+            AuthSeeder::class,
             ComptesTableSeeder::class,
             TransactionsTableSeeder::class,
         ]);

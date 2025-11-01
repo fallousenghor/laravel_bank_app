@@ -6,7 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
+use Laravel\Passport\HasApiTokens;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class User extends Authenticatable
@@ -71,5 +71,32 @@ class User extends Authenticatable
     {
         return $this->hasMany(Compte::class, 'utilisateur_id')
                     ->select(['id', 'numero', 'utilisateur_id']); // On garde l'id et utilisateur_id pour la relation
+    }
+
+    /**
+     * Retourne les scopes (permissions) à ajouter au token pour cet utilisateur.
+     * Utilise le rôle pour déterminer des scopes simples. Améliorer selon la logique métier.
+     *
+     * @return array
+     */
+    public function getScopes(): array
+    {
+        $role = $this->role ?? 'client';
+
+        if ($role === 'admin') {
+            // admin a tous les droits
+            return ['role:admin', '*'];
+        }
+
+        // Client permissions: can only see their own accounts and modify their own information
+        return [
+            'role:client',
+            'comptes:read',
+            'comptes:create',
+            'comptes:update',
+            'comptes:delete',
+            'users:read',
+            'users:update',
+        ];
     }
 }

@@ -1,77 +1,104 @@
-FROM php:8.2-fpm
+###
+# Multi-stage Dockerfile for Laravel 10
+# - builder stage installs system deps & Composer dependencies
+# - production stage runs PHP-FPM as non-root (www-data)
+# Notes:
+# - Keep builds reproducible by copying composer files first to leverage cache
+# - Do not run environment-specific artisan caching at build time (can be done at deploy)
+###
 
-# Arguments définis dans docker-compose.yml
-ARG user=laravel
-ARG uid=1000
+FROM php:8.3-fpm AS builder
 
-# Installer les dépendances système
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    default-libmysqlclient-dev \
-    zip \
-    unzip \
-    libpq-dev
+# Arguments
+ARG USER=www-data
+ARG UID=1000
 
-# Nettoyer le cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+ENV COMPOSER_ALLOW_SUPERUSER=1 \
+    COMPOSER_HOME=/composer
 
-# Installer les extensions PHP
-RUN docker-php-ext-install pdo pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd || true
-
-# Obtenir la dernière version de Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Créer un utilisateur système pour exécuter les commandes Composer et Artisan
-RUN useradd -G www-data,root -u $uid -d /home/$user $user
-RUN mkdir -p /home/$user/.composer && \
-    chown -R $user:$user /home/$user
-
-# Configuration PHP
-RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
-
-# Définir le répertoire de travail
 WORKDIR /var/www/html
 
-# Copier les fichiers du projet
+# Install system dependencies required for Laravel and common extensions
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    zip \
+    unzip \
+    libzip-dev \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libonig-dev \
+    libxml2-dev \
+    libicu-dev \
+    libpq-dev \
+    ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# Configure and install PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+ && docker-php-ext-install -j$(nproc) gd pdo pdo_mysql pdo_pgsql mbstring zip exif pcntl bcmath intl opcache
+
+# Install redis extension (optional, many apps use it)
+RUN pecl install redis && docker-php-ext-enable redis || true
+
+# Install Composer (use official composer image binary)
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Copy composer files first to leverage Docker layer caching
+COPY composer.json composer.lock ./
+
+# Install PHP dependencies (no dev, optimized autoloader)
+RUN composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader --no-scripts --no-progress --no-plugins
+
+# Copy application code
 COPY . .
 
-# Copier les permissions du projet
-COPY --chown=$user:$user . .
+# Ensure storage and cache directories exist and have correct permissions
+RUN mkdir -p storage/framework storage/logs bootstrap/cache \
+ && chown -R ${USER}:${USER} storage bootstrap/cache || true
 
-# Installer les dépendances du projet
-RUN composer install --no-interaction --no-dev --optimize-autoloader
+# Optimize autoloader after the full source is copied
+RUN composer dump-autoload --optimize --no-dev --classmap-authoritative --no-interaction
 
-# Créer les répertoires nécessaires
-RUN mkdir -p /var/www/html/storage/logs \
-    /var/www/html/storage/framework/sessions \
-    /var/www/html/storage/framework/views \
-    /var/www/html/storage/framework/cache \
-    /var/www/html/bootstrap/cache
 
-# Définir les permissions du storage et bootstrap/cache
-RUN chown -R www-data:www-data \
-    /var/www/html/storage \
-    /var/www/html/bootstrap/cache
-RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+FROM php:8.3-fpm AS production
 
-# S'assurer que le processus PHP peut écrire dans ces répertoires
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+WORKDIR /var/www/html
 
-# Changer vers l'utilisateur www-data pour php-fpm
-# Copier le script d'entrypoint qui exécutera migrations / seeders au démarrage
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh && chown www-data:www-data /usr/local/bin/docker-entrypoint.sh
+# Install system dependencies and PHP extensions required at runtime
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+     libzip-dev \
+     libpng-dev \
+     libjpeg-dev \
+     libfreetype6-dev \
+     libonig-dev \
+     libxml2-dev \
+     libicu-dev \
+     libpq-dev \
+     ca-certificates \
+ && docker-php-ext-configure gd --with-freetype --with-jpeg \
+ && docker-php-ext-install -j$(nproc) gd pdo pdo_mysql pdo_pgsql mbstring zip exif bcmath intl opcache \
+ && pecl install redis && docker-php-ext-enable redis || true \
+ && rm -rf /var/lib/apt/lists/*
 
-# Changer vers l'utilisateur www-data pour php-fpm
+# Copy the built application from the builder stage
+COPY --from=builder /var/www/html /var/www/html
+
+# Set correct permissions for runtime (best effort)
+RUN usermod -u 1000 www-data || true \
+ && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache || true
+
 USER www-data
 
-# Exécuter le script d'entrypoint (s'exécutera avec l'utilisateur www-data)
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+EXPOSE 9000
 
-# Start the Laravel built-in server so Render can detect the HTTP port
-EXPOSE 8000
-CMD ["sh", "-lc", "php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"]
+# Copy entrypoint and make executable (entrypoint runs migrations/passport install when enabled)
+COPY --chown=www-data:www-data entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Use entrypoint to allow optional startup tasks, then start php-fpm
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["php-fpm"]

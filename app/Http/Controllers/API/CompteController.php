@@ -24,14 +24,15 @@ use App\Traits\ApiResponse;
  * @OA\Info(
  *     title="API de Gestion des Comptes Bancaires",
  *     version="1.0.0",
- *     description="API pour la gestion des comptes bancaires"
+ *     description="API pour la gestion des comptes bancaires avec autorisations basées sur les rôles"
  * )
  * (Servers are generated from configuration (APP_URL / SWAGGER_BASE_URL) so they are set per-environment.)
  * @OA\SecurityScheme(
  *     securityScheme="bearerAuth",
  *     type="http",
  *     scheme="bearer",
- *     bearerFormat="JWT"
+ *     bearerFormat="JWT",
+ *     description="Token JWT requis. Les administrateurs ont tous les droits, les clients ne peuvent voir/modifier que leurs propres comptes."
  * )
  */
 class CompteController extends Controller
@@ -49,7 +50,8 @@ class CompteController extends Controller
      *     path="/senghorfallou/v1/comptes/{id}",
      *     tags={"Comptes"},
      *     summary="Supprimer un compte",
-     *     description="Effectue une suppression douce (soft delete) d'un compte",
+     *     description="Effectue une suppression douce (soft delete) d'un compte. Les clients ne peuvent supprimer que leurs propres comptes.",
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -91,6 +93,15 @@ class CompteController extends Controller
             return $this->errorResponse('Compte non trouvé', 404);
         }
 
+        // Authorization: only authenticated users may perform this action.
+        // Policies ensure admin or owner access.
+        $user = request()->user();
+        if (!$user) {
+            return $this->errorResponse('Authentification requise', 401);
+        }
+
+        $this->authorize('delete', $compte);
+
         // Mise à jour du statut à "ferme" avant la suppression
         $compte->statut = 'ferme';
         $compte->save();
@@ -112,7 +123,7 @@ class CompteController extends Controller
      *     path="/senghorfallou/v1/comptes",
      *     tags={"Comptes"},
      *     summary="Lister tous les comptes",
-     *     description="Retourne la liste paginée de tous les comptes bancaires non supprimés",
+     *     description="Retourne la liste paginée des comptes bancaires. Les administrateurs voient tous les comptes, les clients ne voient que leurs propres comptes.",
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="page",
@@ -256,20 +267,10 @@ class CompteController extends Controller
             ];
 
             // Get paginated results
+            // Require authenticated user — endpoint no longer supports admin_id fallback
             $user = $request->user();
-            $adminId = $validated['admin_id'] ?? null;
-
-            // Validate authentication or admin access
-            if (!$user && !$adminId) {
-                return $this->errorResponse('Authentification requise ou paramètre admin_id', 401);
-            }
-
-            // If admin_id is provided, verify the user is an admin
-            if ($adminId) {
-                $admin = \App\Models\User::find($adminId);
-                if (!$admin || $admin->role !== 'admin') {
-                    return $this->errorResponse('Accès non autorisé', 403);
-                }
+            if (!$user) {
+                return $this->errorResponse('Authentification requise', 401);
             }
 
             // Get paginated results with filters
@@ -279,19 +280,16 @@ class CompteController extends Controller
                 $validated['limit'] ?? 10
             );
 
-            // If authenticated user is not an admin, filter results to show only their accounts
-            if ($user && $user->role !== 'admin') {
+            // If authenticated user is not an admin, filter results to their accounts only
+            if ($user->role !== 'admin') {
                 $filters['client_id'] = $user->id;
-                $comptes = $this->compteRepository->getAllComptes(
-                    $filters,
-                    $validated['page'] ?? 1,
-                    $validated['limit'] ?? 10
-                );
             }
-            $adminId = $request->validated()['admin_id'] ?? null;
-            if (!$user && !$adminId) {
-                return $this->errorResponse("Authentification requise ou paramètre admin_id", 401);
-            }
+
+            $comptes = $this->compteRepository->getAllComptes(
+                $filters,
+                $validated['page'] ?? 1,
+                $validated['limit'] ?? 10
+            );
 
             $query = Compte::with('utilisateur');
 
@@ -302,8 +300,8 @@ class CompteController extends Controller
             })
             ->where('statut', '=', 'actif');
 
-            // For Client, only their own comptes
-            if ($user && $user->role !== 'admin') {
+            // For non-admin users, only their own comptes
+            if ($user->role !== 'admin') {
                 $query->where('client_id', $user->id);
             }
 
@@ -428,16 +426,15 @@ class CompteController extends Controller
             }
 
             return $this->paginatedResponse($comptes, 'Comptes récupérés');
-        } catch (\Exception $e) {
-            \Log::error('Erreur lors de la récupération des comptes: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-                'request' => $request->all(),
-                'admin_id' => $adminId ?? 'non défini',
-                'user' => $user ? ['id' => $user->id, 'role' => $user->role] : 'non authentifié'
-            ]);
+            } catch (\Exception $e) {
+                \Log::error('Erreur lors de la récupération des comptes: ' . $e->getMessage(), [
+                    'trace' => $e->getTraceAsString(),
+                    'request' => $request->all(),
+                    'user' => $user ? ['id' => $user->id, 'role' => $user->role] : 'non authentifié'
+                ]);
 
-            return $this->errorResponse("Erreur interne du serveur - " . $e->getMessage(), 500);
-        }
+                return $this->errorResponse("Erreur interne du serveur - " . $e->getMessage(), 500);
+            }
     }
 
     /**
@@ -445,7 +442,7 @@ class CompteController extends Controller
      *     path="/senghorfallou/v1/comptes/{id}",
      *     tags={"Comptes"},
      *     summary="Obtenir les détails d'un compte spécifique",
-     *     description="Retourne les détails d'un compte bancaire spécifique avec son utilisateur",
+     *     description="Retourne les détails d'un compte bancaire spécifique. Les administrateurs peuvent voir tous les comptes, les clients ne peuvent voir que leurs propres comptes.",
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
@@ -498,6 +495,15 @@ class CompteController extends Controller
     {
         // L'ID est déjà validé par ShowCompteRequest
         $compte = $this->compteRepository->getCompteById($id);
+
+        // Authorization: authenticated user only (policies check admin/owner)
+        $user = $request->user();
+        if (!$user) {
+            return $this->errorResponse('Authentification requise', 401);
+        }
+
+        $this->authorize('view', $compte);
+
         return $this->successResponse(new CompteResource($compte), 'Détails du compte');
     }
 
@@ -506,7 +512,7 @@ class CompteController extends Controller
      *     path="/senghorfallou/v1/comptes/mine",
      *     tags={"Comptes"},
      *     summary="Obtenir les comptes du client connecté",
-     *     description="Retourne la liste des comptes actifs du client authentifié ou via user_id en paramètre",
+     *     description="Retourne la liste des comptes actifs du client connecté. Les clients ne voient que leurs propres comptes.",
      *     security={{"bearerAuth":{}}},
     *     @OA\Parameter(
     *         name="user_id",
@@ -559,26 +565,17 @@ class CompteController extends Controller
     public function mine(MineComptesRequest $request)
     {
         try {
-            // When unauthenticated, allow passing `user_id` as a query parameter for testing.
+            // Require authenticated user — identify via token
             $user = $request->user();
-            $userId = $user?->id ?? $request->validated()['user_id'] ?? null;
-
-            if (!$userId) {
-                return $this->errorResponse("Paramètre 'user_id' requis lorsque non authentifié", 400);
+            if (!$user) {
+                return $this->errorResponse("Authentification requise", 401);
             }
 
-            // Verify if user exists
-            $userExists = \App\Models\User::where('id', $userId)->exists();
-            if (!$userExists) {
-                return $this->errorResponse("Utilisateur non trouvé", 404);
-            }
-
-            $comptes = $this->compteRepository->getActiveComptesByUserId($userId);
+            $comptes = $this->compteRepository->getActiveComptesByUserId($user->id);
             return $this->successResponse(CompteResource::collection($comptes), 'Comptes de l\'utilisateur');
         } catch (\Exception $e) {
             \Log::error('Erreur lors de la récupération des comptes utilisateur: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
-                'user_id' => $userId ?? 'non défini',
                 'request' => $request->all()
             ]);
             return $this->errorResponse("Erreur interne du serveur", 500);
@@ -660,49 +657,61 @@ class CompteController extends Controller
         try {
             $validated = $request->validated();
 
-            // Find existing client by id, email or telephone (in that order)
+            // Require authenticated user — token is the canonical identity
+            $authUser = $request->user();
+            if (!$authUser) {
+                return $this->errorResponse('Authentification requise', 401);
+            }
+
+            // If the authenticated user is not an admin, always create the compte for themself.
+            // Admins may specify a client payload to create an account for another user.
             $client = null;
             $clientInput = $validated['client'] ?? [];
 
-            if (!empty($clientInput['id'])) {
-                $client = User::find($clientInput['id']);
-            }
+            if ($authUser->role !== 'admin') {
+                $client = $authUser;
+            } else {
+                // Admin flow: try to find or create the client from payload
+                if (!empty($clientInput['id'])) {
+                    $client = User::find($clientInput['id']);
+                }
 
-            if (!$client && !empty($clientInput['email'])) {
-                $client = User::where('email', $clientInput['email'])->first();
-            }
+                if (!$client && !empty($clientInput['email'])) {
+                    $client = User::where('email', $clientInput['email'])->first();
+                }
 
-            if (!$client && !empty($clientInput['telephone'])) {
-                $client = User::where('telephone', $clientInput['telephone'])->first();
-            }
+                if (!$client && !empty($clientInput['telephone'])) {
+                    $client = User::where('telephone', $clientInput['telephone'])->first();
+                }
 
-            if (!$client) {
-                // Create new client and send credentials + verification code
-                $password = Str::random(8);
-                // Use a 6-digit numeric code for SMS verification
-                $code = str_pad((string) mt_rand(0, 999999), 6, '0', STR_PAD_LEFT);
+                if (!$client) {
+                    // Create new client and send credentials + verification code
+                    $password = Str::random(8);
+                    // Use a 6-digit numeric code for SMS verification
+                    $code = str_pad((string) mt_rand(0, 999999), 6, '0', STR_PAD_LEFT);
 
-                // Parse titulaire into prenom / nom more robustly
-                $titulaire = $clientInput['titulaire'] ?? '';
-                $parts = preg_split('/\s+/', trim($titulaire));
-                $prenom = $parts[0] ?? '';
-                $nom = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : ($parts[0] ?? '');
+                    // Parse titulaire into prenom / nom more robustly
+                    $titulaire = $clientInput['titulaire'] ?? '';
+                    $parts = preg_split('/\s+/', trim($titulaire));
+                    $prenom = $parts[0] ?? '';
+                    $nom = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : ($parts[0] ?? '');
 
-                $client = User::create([
-                    'nom' => $nom,
-                    'prenom' => $prenom,
-                    'email' => $clientInput['email'] ?? null,
-                    'telephone' => $clientInput['telephone'] ?? null,
-                    'adresse' => $clientInput['adresse'] ?? null,
-                    'nci' => $clientInput['nci'] ?? null,
-                    'code' => $code,
-                    'password' => Hash::make($password),
-                    // DB uses 'user' for client role (enum: 'admin','user')
-                    'role' => 'user',
-                ]);
+                    $client = User::create([
+                        'nom' => $nom,
+                        'prenom' => $prenom,
+                        'email' => $clientInput['email'] ?? null,
+                        'telephone' => $clientInput['telephone'] ?? null,
+                        'adresse' => $clientInput['adresse'] ?? null,
+                        'nci' => $clientInput['nci'] ?? null,
+                        'code' => $code,
+                        'password' => Hash::make($password),
+                        // DB uses 'user' for client role (enum: 'admin','user')
+                        'role' => 'user',
+                    ]);
 
-                // Fire event for notifications (email + SMS)
-                event(new ClientCreated($client, $password, $code));
+                    // Fire event for notifications (email + SMS)
+                    event(new ClientCreated($client, $password, $code));
+                }
             }
 
             // Create account — only include 'devise' if the DB column exists (migrations may be out of sync)
@@ -745,7 +754,7 @@ class CompteController extends Controller
      *     path="/senghorfallou/v1/comptes/{compteId}",
      *     tags={"Comptes"},
      *     summary="Mettre à jour les informations du client",
-     *     description="Modifie les informations du client associé à un compte bancaire. Tous les champs sont optionnels mais au moins un champ doit être fourni.",
+     *     description="Modifie les informations du client associé à un compte bancaire. Les clients ne peuvent modifier que leurs propres informations.",
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="compteId",
@@ -832,6 +841,14 @@ class CompteController extends Controller
                 return $this->errorResponse("Utilisateur associé non trouvé", 404);
             }
 
+            // Authorization: authenticated user only. Policies enforce admin or owner.
+            $authUser = $request->user();
+            if (!$authUser) {
+                return $this->errorResponse('Authentification requise', 401);
+            }
+
+            $this->authorize('update', $compte);
+
             \DB::beginTransaction();
 
             // Update titulaire if provided
@@ -897,7 +914,7 @@ class CompteController extends Controller
      *     path="/senghorfallou/v1/comptes/{compteId}/bloquer",
      *     tags={"Comptes"},
      *     summary="Bloquer un compte bancaire",
-     *     description="Bloque un compte bancaire avec des dates de début et fin de blocage",
+     *     description="Bloque un compte bancaire avec des dates de début et fin de blocage. Réservé aux administrateurs.",
      *     security={{"bearerAuth":{}}},
     *     @OA\Parameter(
     *         name="admin_id",
@@ -957,21 +974,13 @@ class CompteController extends Controller
     public function bloquer(BloquerCompteRequest $request, $compteId)
     {
         try {
+            // Require authenticated admin
             $user = $request->user();
-            $adminId = $request->query('admin_id');
-
-            // Allow access if authenticated as admin or admin_id provided
-            if (!$user && !$adminId) {
-                return $this->errorResponse("ID administrateur requis", 401);
+            if (!$user) {
+                return $this->errorResponse("Authentification requise", 401);
             }
 
-            // Determine admin user
-            $admin = $user;
-            if (!$admin && $adminId) {
-                $admin = User::find($adminId);
-            }
-
-            if (!$admin || !in_array(strtolower($admin->role), ['admin', 'administrateur', 'Admin'])) {
+            if ($user->role !== 'admin') {
                 return $this->errorResponse("Seul un administrateur peut bloquer un compte", 403);
             }
 
