@@ -176,13 +176,7 @@ class CompteController extends Controller
      *         required=false,
      *         @OA\Schema(type="string", enum={"asc", "desc"})
      *     ),
-     *     @OA\Parameter(
-     *         name="admin_id",
-     *         in="query",
-     *         description="ID de l'admin (UUID, pour accès temporaire sans authentification)",
-     *         required=false,
-     *         @OA\Schema(type="string", format="uuid", example="550e8400-e29b-41d4-a716-446655440000")
-     *     ),
+
      *     @OA\Response(
      *         response=200,
      *         description="Liste des comptes récupérée avec succès",
@@ -219,14 +213,14 @@ class CompteController extends Controller
      *             )
      *         )
      *     ),
-     *     @OA\Response(
-     *         response=401,
-     *         description="Non authentifié ou ID administrateur requis",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=false),
-     *             @OA\Property(property="message", type="string", example="Authentification requise ou paramètre admin_id")
-     *         )
-     *     ),
+    *     @OA\Response(
+    *         response=401,
+    *         description="Non authentifié",
+    *         @OA\JsonContent(
+    *             @OA\Property(property="success", type="boolean", example=false),
+    *             @OA\Property(property="message", type="string", example="Authentification requise")
+    *         )
+    *     ),
      *     @OA\Response(
      *         response=403,
      *         description="Accès non autorisé",
@@ -235,22 +229,17 @@ class CompteController extends Controller
      *             @OA\Property(property="message", type="string", example="Accès non autorisé")
      *         )
      *     ),
-     *     @OA\Response(
-     *         response=422,
-     *         description="Erreur de validation des paramètres",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="L'ID admin doit être un UUID valide."),
-     *             @OA\Property(
-     *                 property="errors",
-     *                 type="object",
-     *                 @OA\Property(
-     *                     property="admin_id",
-     *                     type="array",
-     *                     @OA\Items(type="string", example="L'ID admin doit être un UUID valide.")
-     *                 )
-     *             )
-     *         )
-     *     )
+    *     @OA\Response(
+    *         response=422,
+    *         description="Erreur de validation des paramètres",
+    *         @OA\JsonContent(
+    *             @OA\Property(property="message", type="string", example="Paramètres invalides."),
+    *             @OA\Property(
+    *                 property="errors",
+    *                 type="object"
+    *             )
+    *         )
+    *     )
      * )
      */
     public function index(ListComptesRequest $request)

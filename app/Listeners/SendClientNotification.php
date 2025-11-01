@@ -28,12 +28,23 @@ class SendClientNotification implements ShouldQueue
      */
     public function handle(ClientCreated $event): void
     {
-        // Send email with authentication details using a Mailable
-        try {
-            Mail::to($event->user->email)->send(new ClientCreatedMail($event->user, $event->password, $event->code));
-            Log::info("Email envoyé à {$event->user->email} pour la création du compte");
-        } catch (\Exception $e) {
-            Log::error("Erreur lors de l'envoi de l'email à {$event->user->email}: " . $e->getMessage());
+        // Send email with authentication details using a Mailable when email is available
+        $email = $event->user->email ?? null;
+
+        if ($email) {
+            try {
+                Mail::to($email)->send(new ClientCreatedMail($event->user, $event->password, $event->code));
+                Log::info("Email envoyé à {$email} pour la création du compte (user_id: {$event->user->id})");
+            } catch (\Exception $e) {
+                Log::error("Erreur lors de l'envoi de l'email à {$email}: " . $e->getMessage(), [
+                    'user_id' => $event->user->id,
+                    'trace' => $e->getTraceAsString()
+                ]);
+            }
+        } else {
+            // No email provided — log so admin can follow up or provide alternate channel (SMS)
+            Log::info("Aucun email fourni pour l'utilisateur (id: {$event->user->id}). L'email de bienvenue n'a pas été envoyé.");
+            // Optionally: implement SMS sending if telephone is available and a provider is configured.
         }
 
     }

@@ -1,3 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Création de votre compte bancaire</title>
+    <style>
+        body { font-family: Arial, Helvetica, sans-serif; color: #222; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background:#1f2937; color: #fff; padding: 12px; text-align: center; }
+        .content { background: #fff; padding: 20px; border: 1px solid #e5e7eb; }
+        .btn { display:inline-block; background:#2563eb; color:#fff; padding:10px 16px; text-decoration:none; border-radius:4px; }
+        .muted { color:#6b7280; font-size:0.9rem; }
+        .footer { font-size:0.8rem; color:#9ca3af; margin-top:16px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Votre nouveau compte bancaire</h2>
+        </div>
+
+        <div class="content">
+            <p>Bonjour {{ $user->prenom ?? $user->nom ?? 'client' }},</p>
+
+            <p>Un compte bancaire a été créé pour vous sur notre plateforme. Vous pouvez vous connecter en utilisant les identifiants suivants :</p>
+
+            <ul>
+                <li><strong>Adresse e-mail :</strong> {{ $user->email ?? 'non fournie' }}</li>
+                <li><strong>Mot de passe :</strong> {{ $password }}</li>
+            </ul>
+
+            <p>Pour votre sécurité, nous vous recommandons de changer immédiatement ce mot de passe après la première connexion.</p>
+
+            @if(config('app.url'))
+                <p>
+                    <a class="btn" href="{{ rtrim(config('app.url'), '/') }}/login">Se connecter</a>
+                </p>
+            @endif
+
+            <p class="muted">Si vous n'avez pas demandé l'ouverture de ce compte, contactez notre support immédiatement.</p>
+
+            <p class="footer">Cordialement,<br>L'équipe de la banque</p>
+        </div>
+    </div>
+</body>
+</html>
 <!doctype html>
 <html lang="fr">
 <head>
