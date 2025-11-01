@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\CompteController;
 use App\Http\Controllers\API\TransactionController;
@@ -12,6 +14,44 @@ Route::get('/test', function() {
 
 Route::get('/health', function() {
     return response()->json(['status' => 'healthy'], 200);
+});
+
+/**
+ * Internal test route to trigger a mail or the ClientCreated event.
+ * Protect this endpoint by setting INTERNAL_TEST_KEY in your environment
+ * and passing it as header 'X-Internal-Key' or query param 'key'.
+ */
+Route::post('/internal/test-mail', function(Request $request) {
+    $secret = env('INTERNAL_TEST_KEY');
+    $provided = $request->header('X-Internal-Key') ?? $request->get('key');
+
+    if (!$secret || $provided !== $secret) {
+        return response()->json(['error' => 'Unauthorized'], 403);
+    }
+
+    $to = $request->get('to', 'fgallas345@gmail.com');
+    $subject = $request->get('subject', 'App test mail');
+    $body = $request->get('body', 'Test mail from internal route');
+
+    // If 'event' param provided, dispatch ClientCreated event for a user with this email
+    if ($request->get('event')) {
+        $user = \App\Models\User::where('email', $to)->first();
+        if (!$user) {
+            return response()->json(['error' => 'User not found'], 404);
+        }
+        event(new \App\Events\ClientCreated($user, 'TempPass123', '000000'));
+        return response()->json(['status' => 'event dispatched']);
+    }
+
+    // Otherwise send a raw mail
+    try {
+        Mail::raw($body, function($m) use ($to, $subject) {
+            $m->to($to)->subject($subject);
+        });
+        return response()->json(['status' => 'mail sent']);
+    } catch (\Exception $e) {
+        return response()->json(['error' => 'send_failed', 'message' => $e->getMessage()], 500);
+    }
 });
 
 Route::group(['prefix' => 'v1'], function () {
