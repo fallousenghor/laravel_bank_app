@@ -1,5 +1,8 @@
 <?php
 
+
+
+
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
@@ -10,40 +13,39 @@ class PassportClientsSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     *
+     * This seeder will create a password grant client and a personal access client
+     * only if they don't already exist. It uses Passport's ClientRepository so
+     * secrets are generated correctly for the current Passport version.
      */
-    public function run(): void
+    public function run()
     {
-        // Create a simple password grant client and personal access client if they don't exist.
-        $now = now();
+        $repo = new ClientRepository();
 
-        $passwordClient = DB::table('oauth_clients')->where('password_client', true)->first();
-        if (! $passwordClient) {
-            DB::table('oauth_clients')->insert([
-                'name' => 'Password Grant Client',
-                'secret' => bin2hex(random_bytes(40)),
-                'redirect' => url('/'),
-                'personal_access_client' => false,
-                'password_client' => true,
-                'revoked' => false,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-            $this->command->info('Password grant client created');
+        // Create password grant client if missing
+        if (! DB::table('oauth_clients')->where('password_client', true)->exists()) {
+            $client = $repo->createPasswordGrantClient(null, 'Password Grant Client', 'http://localhost');
+            // Log to storage/logs/laravel.log so you can fetch secret after deploy
+            logger()->info('Passport password client created', ['id' => $client->id, 'secret' => $client->secret]);
+        } else {
+            logger()->info('Passport password client already exists');
         }
 
-        $personal = DB::table('oauth_clients')->where('personal_access_client', true)->first();
-        if (! $personal) {
-            DB::table('oauth_clients')->insert([
-                'name' => 'Personal Access Client',
-                'secret' => bin2hex(random_bytes(40)),
-                'redirect' => url('/'),
-                'personal_access_client' => true,
-                'password_client' => false,
-                'revoked' => false,
-                'created_at' => $now,
-                'updated_at' => $now,
+        // Create personal access client if missing
+        if (! DB::table('oauth_personal_access_clients')->exists()) {
+            $client = $repo->createPersonalAccessClient(null, 'Personal Access Client', 'http://localhost');
+            // ensure record exists in oauth_personal_access_clients table
+            DB::table('oauth_personal_access_clients')->updateOrInsert([
+                'client_id' => $client->id,
+            ], [
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
-            $this->command->info('Personal access client created');
+
+            logger()->info('Passport personal access client created', ['id' => $client->id, 'secret' => $client->secret]);
+        } else {
+            logger()->info('Passport personal access client already exists');
         }
     }
 }
+
