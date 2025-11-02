@@ -101,6 +101,35 @@ return [
             'timezone' => 'UTC',
         ],
 
+        /*
+        |--------------------------------------------------------------------------
+        | Railway PostgreSQL (secondaire)
+        |--------------------------------------------------------------------------
+        | Connexion additionnelle vers la base de données hébergée sur Railway.
+        | Utilisez les variables d'environnement RAILWAY_DB_* ou RAILWAY_DATABASE_URL
+        | pour fournir les informations de connexion.
+        */
+        'railway' => [
+            'driver' => 'pgsql',
+            /*
+             * Accept either a dedicated RAILWAY_DATABASE_URL or the generic
+             * DATABASE_URL that Railway exposes. Also allow PGHOST/PGUSER/... as
+             * provided by Railway for individual parts.
+             */
+            'url' => env('RAILWAY_DATABASE_URL', env('DATABASE_URL')),
+            'host' => env('RAILWAY_DB_HOST', env('PGHOST', '127.0.0.1')),
+            'port' => env('RAILWAY_DB_PORT', env('PGPORT', '5432')),
+            'database' => env('RAILWAY_DB_DATABASE', env('PGDATABASE', 'railway_db')),
+            'username' => env('RAILWAY_DB_USERNAME', env('PGUSER', 'railway_user')),
+            'password' => env('RAILWAY_DB_PASSWORD', env('PGPASSWORD', '')),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'schema' => env('RAILWAY_DB_SCHEMA', env('PGSCHEMA', 'public')),
+            'sslmode' => env('RAILWAY_DB_SSLMODE', env('PGSSLMODE', 'require')),
+            'timezone' => 'UTC',
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DATABASE_URL'),

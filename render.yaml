@@ -25,7 +25,6 @@ services:
     envVars:
       - key: PORT
         value: '8080'
-    envVars:
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
@@ -34,7 +33,17 @@ services:
         # Set this to your public URL in the Render dashboard
         value: ''
       - key: RUN_MIGRATIONS_ON_START
-        value: 'true'
+        value: 'false'
+      - key: QUEUE_CONNECTION
+        value: redis
+      - key: REDIS_HOST
+        value: ''
+      - key: REDIS_PORT
+        value: '6379'
+      - key: REDIS_PASSWORD
+        value: ''
+      - key: DATABASE_URL
+        value: ''
     # These secrets should be created in Render and referenced by name in the dashboard
     # (Render UI/CLI will let you create them; names below are recommendations)
     secrets:
@@ -46,6 +55,10 @@ services:
         name: OAUTH_PRIVATE_KEY
       - key: OAUTH_PUBLIC_KEY
         name: OAUTH_PUBLIC_KEY
+      - key: REDIS_PASSWORD
+        name: REDIS_PASSWORD
+      - key: DATABASE_URL
+        name: DATABASE_URL
 
   - type: worker
     name: laravel-queue-worker
@@ -53,23 +66,46 @@ services:
     plan: starter
     branch: deploiment
     dockerfilePath: Dockerfile
-    startCommand: php artisan queue:work --sleep=3 --tries=3 --timeout=60
+    # Make the worker robust for potentially long-running archive jobs
+    startCommand: php artisan queue:work --sleep=3 --tries=3 --timeout=300 --memory=512
     envVars:
       - key: APP_ENV
         value: production
       - key: QUEUE_CONNECTION
         value: redis
+      - key: REDIS_HOST
+        value: ''
+      - key: REDIS_PORT
+        value: '6379'
+      - key: REDIS_PASSWORD
+        value: ''
       - key: PORT
         value: '8080'
     secrets:
       - key: REDIS_PASSWORD
         name: REDIS_PASSWORD
+      - key: DATABASE_URL
+        name: DATABASE_URL
 
 cronJobs:
   - name: laravel-scheduler
     schedule: "*/5 * * * *" # every 5 minutes
     env: docker
     dockerfilePath: Dockerfile
+    # Ensure the scheduler uses the Redis queue (does not run jobs inline)
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: QUEUE_CONNECTION
+        value: redis
+      - key: REDIS_HOST
+        value: ''
+      - key: REDIS_PORT
+        value: '6379'
+      - key: REDIS_PASSWORD
+        value: ''
+      - key: DATABASE_URL
+        value: ''
     startCommand: php artisan schedule:run
 
 databases:

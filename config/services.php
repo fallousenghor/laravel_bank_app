@@ -31,4 +31,10 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // Passport / OAuth clients used by the API (keep in config so values are available when config is cached)
+    'passport' => [
+        'password_client_id' => env('PASSPORT_PASSWORD_CLIENT_ID'),
+        'password_client_secret' => env('PASSPORT_PASSWORD_CLIENT_SECRET'),
+    ],
+
 ];

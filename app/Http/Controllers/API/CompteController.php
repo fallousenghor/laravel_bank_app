@@ -1021,22 +1021,42 @@ class CompteController extends Controller
                 return $this->errorResponse("Compte non trouvé", 404);
             }
 
-            // Update compte with blocking dates and status
-            $updateData = ['statut' => 'bloque'];
+            // Update compte with blocking dates.
+            // Important: do NOT set statut = 'bloque' here if the date_debut_blocage is in the future.
+            // The account will be marked 'bloque' when date_debut_blocage <= now() by the scheduled job.
+            $updateData = [];
 
-            if (Schema::hasColumn('comptes', 'date_debut_blocage')) {
+            if (Schema::hasColumn('comptes', 'date_debut_blocage') && $request->filled('date_debut_blocage')) {
                 $updateData['date_debut_blocage'] = $request->date_debut_blocage;
             }
 
-            if (Schema::hasColumn('comptes', 'date_fin_blocage')) {
+            if (Schema::hasColumn('comptes', 'date_fin_blocage') && $request->filled('date_fin_blocage')) {
                 $updateData['date_fin_blocage'] = $request->date_fin_blocage;
             }
 
-            $compte->update($updateData);
+            // If the provided date_debut is now or in the past, apply the statut immediately.
+            if (!empty($updateData['date_debut_blocage'])) {
+                try {
+                    $debut = \Illuminate\Support\Carbon::parse($updateData['date_debut_blocage']);
+                    if ($debut->lessThanOrEqualTo(now())) {
+                        $updateData['statut'] = 'bloque';
+                    }
+                } catch (\Exception $e) {
+                    // If parsing fails, do not change statut; validation should prevent this.
+                }
+            }
+
+            if (!empty($updateData)) {
+                $compte->update($updateData);
+            }
+
+            $message = isset($updateData['statut']) && $updateData['statut'] === 'bloque'
+                ? 'Compte bloqué avec succès'
+                : 'Blocage programmé (statut restera actif jusqu\'à la date_debut_blocage)';
 
             return $this->successResponse(
-                new CompteResource($compte),
-                'Compte bloqué avec succès'
+                new CompteResource($compte->refresh()),
+                $message
             );
 
         } catch (\Exception $e) {

@@ -18,8 +18,14 @@ class Kernel extends ConsoleKernel
     // If needed in the future re-enable the job by scheduling it here.
     // $schedule->job(new \App\Jobs\ArchiveComptesJob)->daily();
 
-        // Schedule unarchiving job to run daily at midnight
-        $schedule->job(new \App\Jobs\UnarchiveComptesJob)->daily();
+    // Schedule unarchiving job to run daily at midnight
+    $schedule->job(new \App\Jobs\UnarchiveComptesJob)->daily();
+
+    // Run archive scan every 5 minutes to move comptes whose block start date has arrived
+    $schedule->job(new \App\Jobs\ArchiveScanJob)->everyFiveMinutes();
+
+    // Run unarchive scan every 5 minutes to restore comptes whose block end date passed
+    $schedule->job(new \App\Jobs\UnarchiveScanJob)->everyFiveMinutes();
     }
 
     /**

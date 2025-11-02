@@ -97,8 +97,9 @@ class AuthController extends Controller
 
 
         // Use password grant to obtain access + refresh tokens via internal /oauth/token
-        $passwordClientId = env('PASSPORT_PASSWORD_CLIENT_ID');
-        $passwordClientSecret = env('PASSPORT_PASSWORD_CLIENT_SECRET');
+    // Read password client credentials from config first (works when config is cached)
+    $passwordClientId = config('services.passport.password_client_id', env('PASSPORT_PASSWORD_CLIENT_ID'));
+    $passwordClientSecret = config('services.passport.password_client_secret', env('PASSPORT_PASSWORD_CLIENT_SECRET'));
 
         if (! $passwordClientId || ! $passwordClientSecret) {
             logger()->error('Password client credentials missing in env');
