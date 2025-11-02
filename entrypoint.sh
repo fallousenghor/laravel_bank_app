@@ -37,6 +37,38 @@ if [ "${RUN_MIGRATIONS_ON_START:-false}" = "true" ]; then
   php artisan db:seed --class=Database\\Seeders\\PassportClientsSeeder --force || echo "seeding passport clients failed"
 fi
 
+# Try to create missing clients (password + personal) and export their values
+# into the environment for the running process.
+# Create password client if no password_client exists
+HAS_PASSWORD_CLIENT=$(php -r "try{\$exists = \Illuminate\Support\Facades\DB::table('oauth_clients')->where('password_client',1)->exists(); echo (int) \$exists; }catch(Throwable \$e){echo 0;}" ) || true
+if [ "${HAS_PASSWORD_CLIENT}" = "0" ]; then
+  echo "No password client found in DB — creating one with 'php artisan passport:client --password'"
+  OUT=$(php artisan passport:client --password --name="Password Grant Client" --no-interaction 2>&1 || true)
+  echo "passport:client output: $OUT"
+  PW_ID=$(echo "$OUT" | grep -E 'Client ID' | awk '{print $NF}' | tail -n1 || true)
+  PW_SECRET=$(echo "$OUT" | grep -E 'Client secret' | awk '{print $NF}' | tail -n1 || true)
+  if [ -n "${PW_ID}" ] && [ -n "${PW_SECRET}" ]; then
+    export PASSPORT_PASSWORD_CLIENT_ID="$PW_ID"
+    export PASSPORT_PASSWORD_CLIENT_SECRET="$PW_SECRET"
+    echo "Exported PASSPORT_PASSWORD_CLIENT_ID and PASSPORT_PASSWORD_CLIENT_SECRET from passport:client"
+  fi
+fi
+
+# Create personal access client if missing
+HAS_PERSONAL_CLIENT=$(php -r "try{\$exists = \Illuminate\Support\Facades\DB::table('oauth_personal_access_clients')->exists(); echo (int) \$exists; }catch(Throwable \$e){echo 0;}" ) || true
+if [ "${HAS_PERSONAL_CLIENT}" = "0" ]; then
+  echo "No personal access client found in DB — creating one with 'php artisan passport:client --personal'"
+  OUTP=$(php artisan passport:client --personal --name="Personal Access Client" --no-interaction 2>&1 || true)
+  echo "passport:client personal output: $OUTP"
+  PERS_ID=$(echo "$OUTP" | grep -E 'Client ID' | awk '{print $NF}' | tail -n1 || true)
+  PERS_SECRET=$(echo "$OUTP" | grep -E 'Client secret' | awk '{print $NF}' | tail -n1 || true)
+  if [ -n "${PERS_ID}" ] && [ -n "${PERS_SECRET}" ]; then
+    export PASSPORT_PERSONAL_ACCESS_CLIENT_ID="$PERS_ID"
+    export PASSPORT_PERSONAL_ACCESS_CLIENT_SECRET="$PERS_SECRET"
+    echo "Exported PASSPORT_PERSONAL_ACCESS_CLIENT_ID and PASSPORT_PERSONAL_ACCESS_CLIENT_SECRET from passport:client"
+  fi
+fi
+
 # After seeding, if PASSPORT_PASSWORD_CLIENT_ID/SECRET are not set we try to
 # read them from the database and export them so the running PHP process (fpm
 # or artisan serve) inherits them. This avoids having to manually copy the
