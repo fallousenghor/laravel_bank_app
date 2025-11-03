@@ -21,7 +21,7 @@
                     "Authentification"
                 ],
                 "summary": "Connexion utilisateur",
-                "description": "Authentifie un utilisateur et retourne un token d'accès et un token de rafraîchissement",
+                "description": "tester pour un clent : email: fallousenghor@gmail.com / Password: password",
                 "operationId": "1ff9c65c5cd1a8e0786e318eed856972",
                 "requestBody": {
                     "required": true,
@@ -36,12 +36,12 @@
                                     "email": {
                                         "type": "string",
                                         "format": "email",
-                                        "example": "user@example.com"
+                                        "example": "admin@example.com"
                                     },
                                     "password": {
                                         "type": "string",
                                         "format": "password",
-                                        "example": "password"
+                                        "example": "password123"
                                     }
                                 },
                                 "type": "object"
@@ -1547,9 +1547,295 @@
                     }
                 ]
             }
+        },
+        "/senghorfallou/v1/transactions": {
+            "get": {
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Lister les transactions",
+                "description": "Retourne l'historique paginé des transactions du client authentifié.",
+                "operationId": "a2a48e8d69d08d3a147e052754bf283b",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Numéro de page (défaut: 1)",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Nombre d'éléments par page (défaut: 10, max:100)",
+                        "schema": {
+                            "type": "integer",
+                            "default": 10
+                        }
+                    },
+                    {
+                        "name": "numero_compte",
+                        "in": "query",
+                        "description": "numéro de compte . Ex: CPT123456",
+                        "schema": {
+                            "type": "string",
+                            "example": "CPT123456"
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Filtrer par type ",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "debit",
+                                "credit",
+                                "retrait",
+                                "depot"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Liste paginée de transactions",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TransactionsListResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Créer une transaction (depot, retrait, virement)",
+                "description": "Crée une transaction de type 'depot', 'retrait' ou 'virement'. Pour un 'virement', fournissez 'source_numero' et 'destination_numero'. Clients: opérations sur leurs propres comptes; admins: tous les comptes.",
+                "operationId": "3e035df048a6ff5eb76970a008041537",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "type",
+                                    "montant"
+                                ],
+                                "properties": {
+                                    "type": {
+                                        "description": "depot|retrait|virement",
+                                        "type": "string",
+                                        "example": "virement"
+                                    },
+                                    "numero_compte": {
+                                        "type": "string",
+                                        "example": "CPT123456"
+                                    },
+                                    "source_numero": {
+                                        "type": "string",
+                                        "example": "CPT123456"
+                                    },
+                                    "destination_numero": {
+                                        "type": "string",
+                                        "example": "CPT654321"
+                                    },
+                                    "montant": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 150
+                                    },
+                                    "libelle": {
+                                        "type": "string",
+                                        "example": "Paiement facture"
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "type": "virement",
+                                "source_numero": "CPT123456",
+                                "destination_numero": "CPT654321",
+                                "montant": 150,
+                                "libelle": "Transfert"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Transaction créée",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Virement effectué avec succès"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "debit": {
+                                                    "type": "object"
+                                                },
+                                                "credit": {
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Accès refusé - compte non autorisé"
+                    },
+                    "422": {
+                        "description": "Erreur de validation / solde insuffisant"
+                    },
+                    "500": {
+                        "description": "Erreur interne du serveur"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
+        "schemas": {
+            "TransactionItem": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                    },
+                    "montant": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 150
+                    },
+                    "type": {
+                        "type": "string",
+                        "example": "retrait"
+                    },
+                    "date": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-11-02T20:45:00Z"
+                    },
+                    "compte": {
+                        "properties": {
+                            "numero": {
+                                "type": "string",
+                                "example": "CPT123456"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "TransactionsListResponse": {
+                "properties": {
+                    "success": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Transactions récupérées"
+                    },
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TransactionItem"
+                        }
+                    },
+                    "pagination": {
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "TransactionCreateRequest": {
+                "properties": {
+                    "type": {
+                        "description": "depot|retrait|virement",
+                        "type": "string",
+                        "example": "virement"
+                    },
+                    "numero_compte": {
+                        "type": "string",
+                        "example": "CPT123456"
+                    },
+                    "source_numero": {
+                        "type": "string",
+                        "example": "CPT123456"
+                    },
+                    "destination_numero": {
+                        "type": "string",
+                        "example": "CPT654321"
+                    },
+                    "montant": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 150
+                    },
+                    "libelle": {
+                        "type": "string",
+                        "example": "Paiement facture"
+                    }
+                },
+                "type": "object"
+            },
+            "TransactionCreateResponse": {
+                "properties": {
+                    "success": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Virement effectué avec succès"
+                    },
+                    "data": {
+                        "properties": {
+                            "debit": {
+                                "$ref": "#/components/schemas/TransactionItem"
+                            },
+                            "credit": {
+                                "$ref": "#/components/schemas/TransactionItem"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            }
+        },
         "securitySchemes": {
             "bearerAuth": {
                 "type": "http",
@@ -1571,6 +1857,10 @@
         {
             "name": "Clients",
             "description": "Clients"
+        },
+        {
+            "name": "Transactions",
+            "description": "Transactions"
         }
     ]
 }

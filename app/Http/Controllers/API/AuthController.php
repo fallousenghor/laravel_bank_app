@@ -24,13 +24,13 @@ class AuthController extends Controller
      *     path="/auth/login",
      *     tags={"Authentification"},
      *     summary="Connexion utilisateur",
-     *     description="Authentifie un utilisateur et retourne un token d'accès et un token de rafraîchissement",
+     *     description="tester pour un clent : email: fallousenghor@gmail.com / Password: password",
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
      *             required={"email", "password"},
-     *             @OA\Property(property="email", type="string", format="email", example="user@example.com"),
-     *             @OA\Property(property="password", type="string", format="password", example="password")
+     *             @OA\Property(property="email", type="string", format="email", example="admin@example.com"),
+     *             @OA\Property(property="password", type="string", format="password", example="password123")
      *         )
      *     ),
      *     @OA\Response(

@@ -48,6 +48,7 @@ Route::group(['prefix' => 'v1'], function () {
             Route::delete('comptes/{id}', [CompteController::class, 'destroy']);
 
             Route::get('/transactions', [TransactionController::class, 'index']);
+            Route::post('/transactions', [TransactionController::class, 'store']);
             Route::get('/transactions/{id}', [TransactionController::class, 'show']);
         });
     });
